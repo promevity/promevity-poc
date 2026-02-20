@@ -83,6 +83,12 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-config-yaml</artifactId>
     </dependency>
+    <!-- Liefert jakarta.validation.constraints.* (@NotBlank, @Size, …)
+         und aktiviert automatische Request-Body-Validierung in RESTEasy. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-validator</artifactId>
+    </dependency>
 
     <!-- ── Neo4j driver (Quarkiverse extension) ─────────────────── -->
     <!--
