@@ -114,6 +114,7 @@
     <dependency>
       <groupId>io.quarkiverse.langchain4j</groupId>
       <artifactId>quarkus-langchain4j-google-ai-gemini</artifactId>
+      <version>${quarkus-langchain4j.version}</version>
     </dependency>
 
     <!-- ── Testing ───────────────────────────────────────────── -->
