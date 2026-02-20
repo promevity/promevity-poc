@@ -1,7 +1,7 @@
 package com.promevity.medai;
 
-import com.promevity.medai.domain.Symptom;
-import com.promevity.medai.service.SymptomExtractor;
+import com.promevity.medai.application.service.SymptomExtractor;
+import com.promevity.medai.domain.model.Symptom;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.DisplayName;
@@ -12,10 +12,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link SymptomExtractor}.
+ * Unit-Tests für {@link SymptomExtractor} (Application Layer).
  *
- * <p>Verifies keyword-to-symptom mapping and deduplication logic.
- * No external infrastructure required.
+ * <p>Keine Infrastruktur erforderlich — der Extraktor ist ein reiner
+ * In-Memory-Service ohne externe Abhängigkeiten.
  */
 @QuarkusTest
 class SymptomExtractorTest {
@@ -24,18 +24,17 @@ class SymptomExtractorTest {
     SymptomExtractor extractor;
 
     @Test
-    @DisplayName("High heart rate phrase → Tachykardia")
-    void highHeartRate_mapsToTachykardia() {
-        List<Symptom> result = extractor.extract(
-                "My smartwatch shows a high heart rate all day");
+    @DisplayName("'high heart rate' → Tachykardia")
+    void highHeartRate_mapptAufTachykardia() {
+        List<Symptom> result = extractor.extract("My smartwatch shows a high heart rate");
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).name()).isEqualTo(Symptom.TACHYKARDIA);
     }
 
     @Test
-    @DisplayName("Tired phrase → Fatigue")
-    void tired_mapsToFatigue() {
+    @DisplayName("'very tired' → Fatigue")
+    void veryTired_mapptAufFatigue() {
         List<Symptom> result = extractor.extract("I feel very tired today");
 
         assertThat(result).hasSize(1);
@@ -43,8 +42,8 @@ class SymptomExtractorTest {
     }
 
     @Test
-    @DisplayName("Both symptoms in one sentence — no duplicates")
-    void bothSymptoms_noDuplicates() {
+    @DisplayName("Beide Symptome in einem Satz — keine Duplikate")
+    void beideSymptome_keineDuplikate() {
         String text = "I feel very tired today and my smartwatch shows a high heart rate";
         List<Symptom> result = extractor.extract(text);
 
@@ -54,38 +53,36 @@ class SymptomExtractorTest {
     }
 
     @Test
-    @DisplayName("Repeated keyword — only one Symptom returned")
-    void repeatedKeyword_deduplicated() {
-        String text = "I am exhausted, I feel very tired, and I have fatigue";
-        List<Symptom> result = extractor.extract(text);
-
-        long fatigueCount = result.stream()
+    @DisplayName("Wiederholtes Keyword — nur ein Symptom zurückgegeben")
+    void wiederholtesKeyword_dedupliziert() {
+        String text = "I am exhausted, I feel very tired, I have fatigue";
+        long fatigueCount = extractor.extract(text).stream()
                 .filter(s -> s.name().equals(Symptom.FATIGUE))
                 .count();
+
         assertThat(fatigueCount)
-                .as("Fatigue should appear exactly once despite multiple matching keywords")
+                .as("Fatigue darf trotz mehrerer Matches nur einmal erscheinen")
                 .isEqualTo(1);
     }
 
     @Test
-    @DisplayName("Unknown text → empty list")
-    void unknownText_emptyResult() {
-        List<Symptom> result = extractor.extract("I had a great day at the park");
-        assertThat(result).isEmpty();
+    @DisplayName("Unbekannter Text → leere Liste")
+    void unbekannterText_leereListe() {
+        assertThat(extractor.extract("I had a great day at the park")).isEmpty();
     }
 
     @Test
-    @DisplayName("Null or blank input → empty list")
-    void nullOrBlank_emptyResult() {
+    @DisplayName("Null, Leerstring, Whitespace → leere Liste")
+    void nullOderLeer_leereListe() {
         assertThat(extractor.extract(null)).isEmpty();
-        assertThat(extractor.extract("   ")).isEmpty();
         assertThat(extractor.extract("")).isEmpty();
+        assertThat(extractor.extract("   ")).isEmpty();
     }
 
     @Test
-    @DisplayName("Case-insensitive matching")
-    void caseInsensitive_matches() {
-        List<Symptom> result = extractor.extract("PALPITATION and FATIGUE");
+    @DisplayName("Groß-/Kleinschreibung wird ignoriert")
+    void grossKleinschreibung_ignoriert() {
+        List<Symptom> result = extractor.extract("PALPITATION and FATIGUE detected");
         assertThat(result).extracting(Symptom::name)
                 .contains(Symptom.TACHYKARDIA, Symptom.FATIGUE);
     }

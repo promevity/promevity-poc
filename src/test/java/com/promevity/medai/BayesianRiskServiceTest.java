@@ -1,8 +1,8 @@
 package com.promevity.medai;
 
-import com.promevity.medai.domain.Symptom;
-import com.promevity.medai.service.BayesianRiskService;
-import com.promevity.medai.service.RiskAssessment;
+import com.promevity.medai.domain.model.RiskAssessment;
+import com.promevity.medai.domain.model.Symptom;
+import com.promevity.medai.domain.service.BayesianRiskService;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.DisplayName;
@@ -11,94 +11,90 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 /**
- * Unit-level tests for {@link BayesianRiskService}.
+ * Unit-Tests für {@link BayesianRiskService} (Domain Layer).
  *
- * <p>These tests do NOT require Neo4j or an LLM API key — they only exercise
- * the Bayesian computation logic in isolation, making them fast and suitable
- * for CI pipelines without any infrastructure.
+ * <p>Diese Tests benötigen weder Neo4j noch einen LLM-API-Key — sie prüfen
+ * ausschließlich die isolierte Bayesianische Inferenz-Logik.  Das ist
+ * ein Kernvorteil der Hexagonalen Architektur: Domain-Services sind ohne
+ * Infrastruktur vollständig testbar.
  *
- * <p>Expected probability ranges are derived from the Naïve-Bayes formula
- * implemented in {@link BayesianRiskService}:
+ * <h2>Erwartete Wahrscheinlichkeitsbereiche (aus der Naïve-Bayes-Formel)</h2>
  * <pre>
- *   P(ThyroidDysfunction) = 0.15
- *   P(Tachykardia | Thyroid) = 0.75,  P(Tachykardia | ¬Thyroid) = 0.25
- *   P(Fatigue     | Thyroid) = 0.80,  P(Fatigue     | ¬Thyroid) = 0.35
+ *   Prior P(D) = 0.15
+ *   P(Tachy | D) = 0.75,  P(Tachy | ¬D) = 0.25
+ *   P(Fat   | D) = 0.80,  P(Fat   | ¬D) = 0.35
  *
- *   Both present:   P(D|E) ≈ 0.15 × 0.75 × 0.80 / Z ≈ 85%
- *   Tachykardia:    P(D|E) ≈ 0.15 × 0.75 × 0.20 / Z ≈ 39-40%
- *   Fatigue only:   P(D|E) ≈ 0.15 × 0.25 × 0.80 / Z ≈ 24-25%
- *   No symptoms:    P(D|E) ≈ 0.15 × 0.25 × 0.20 / Z ≈ 15%
+ *   Beide:        ≈ 85 %
+ *   Nur Tachy:    ≈ 39–41 %
+ *   Nur Fatigue:  ≈ 24–26 %
+ *   Keine:        ≈ 10–20 %  (nahe am Prior)
  * </pre>
  */
 @QuarkusTest
 class BayesianRiskServiceTest {
 
     @Inject
-    BayesianRiskService bayesianRiskService;
+    BayesianRiskService service;
 
-    private static final Symptom TACHYKARDIA =
-            new Symptom("symptom-tachykardia", Symptom.TACHYKARDIA);
-    private static final Symptom FATIGUE =
-            new Symptom("symptom-fatigue", Symptom.FATIGUE);
+    private static final Symptom TACHYKARDIA = new Symptom("symptom-tachykardia", Symptom.TACHYKARDIA);
+    private static final Symptom FATIGUE     = new Symptom("symptom-fatigue",     Symptom.FATIGUE);
 
     @Test
-    @DisplayName("Both Tachykardia + Fatigue → high probability (~85%)")
-    void bothSymptoms_highRisk() {
-        RiskAssessment result = bayesianRiskService.assess(List.of(TACHYKARDIA, FATIGUE));
+    @DisplayName("Tachykardia + Fatigue → hohe Wahrscheinlichkeit (~85 %)")
+    void beideSymptome_hoheRisikowahrscheinlichkeit() {
+        RiskAssessment result = service.assess(List.of(TACHYKARDIA, FATIGUE));
 
         assertThat(result.diseaseName()).isEqualTo("Thyroid Dysfunction");
         assertThat(result.probabilityPercentage())
-                .as("Both symptoms should yield ~85% probability")
+                .as("Beide Symptome → ca. 85 %")
                 .isGreaterThan(80.0)
                 .isLessThan(92.0);
         assertThat(result.evidenceSymptoms()).hasSize(2);
     }
 
     @Test
-    @DisplayName("Tachykardia only → moderate probability (~40%)")
-    void tachykardiaOnly_moderateRisk() {
-        RiskAssessment result = bayesianRiskService.assess(List.of(TACHYKARDIA));
+    @DisplayName("Nur Tachykardia → mittlere Wahrscheinlichkeit (~40 %)")
+    void nurTachykardia_mittlereWahrscheinlichkeit() {
+        RiskAssessment result = service.assess(List.of(TACHYKARDIA));
 
         assertThat(result.probabilityPercentage())
-                .as("Tachykardia alone should yield ~39-41% probability")
+                .as("Nur Tachykardia → ca. 39–41 %")
                 .isBetween(35.0, 45.0);
     }
 
     @Test
-    @DisplayName("Fatigue only → low-moderate probability (~25%)")
-    void fatigueOnly_lowModerateRisk() {
-        RiskAssessment result = bayesianRiskService.assess(List.of(FATIGUE));
+    @DisplayName("Nur Fatigue → niedrig-mittlere Wahrscheinlichkeit (~25 %)")
+    void nurFatigue_niedrigMittlereWahrscheinlichkeit() {
+        RiskAssessment result = service.assess(List.of(FATIGUE));
 
         assertThat(result.probabilityPercentage())
-                .as("Fatigue alone should yield ~24-26% probability")
+                .as("Nur Fatigue → ca. 24–26 %")
                 .isBetween(20.0, 30.0);
     }
 
     @Test
-    @DisplayName("No symptoms → near-prior probability (~15%)")
-    void noSymptoms_nearPrior() {
-        RiskAssessment result = bayesianRiskService.assess(List.of());
+    @DisplayName("Keine Symptome → nahe am Prior (~15 %)")
+    void keineSymptome_naheAmPrior() {
+        RiskAssessment result = service.assess(List.of());
 
         assertThat(result.probabilityPercentage())
-                .as("No evidence should produce a probability close to the prior (15%)")
+                .as("Ohne Evidenz → nahe am Prior (15 %)")
                 .isBetween(10.0, 20.0);
         assertThat(result.evidenceSymptoms()).isEmpty();
     }
 
     @Test
-    @DisplayName("Result disease name is always Thyroid Dysfunction")
-    void diseaseName_alwaysThyroid() {
+    @DisplayName("Krankheitsname ist immer 'Thyroid Dysfunction'")
+    void krankheitsname_immerThyroid() {
         List.of(
                 List.of(TACHYKARDIA, FATIGUE),
                 List.of(TACHYKARDIA),
                 List.of(FATIGUE),
                 List.<Symptom>of()
-        ).forEach(symptoms -> {
-            RiskAssessment result = bayesianRiskService.assess(symptoms);
-            assertThat(result.diseaseName()).isEqualTo("Thyroid Dysfunction");
-        });
+        ).forEach(symptoms ->
+                assertThat(service.assess(symptoms).diseaseName())
+                        .isEqualTo("Thyroid Dysfunction"));
     }
 }
