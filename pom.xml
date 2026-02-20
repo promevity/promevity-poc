@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.promevity</groupId>
+  <artifactId>personalized-medicine-ai</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Personalized Medicine AI — PoC</name>
+  <description>
+    GraphRAG + Probabilistic Inference PoC:
+    Neo4j digital-twin graph, Bayesian risk scoring, LangChain4j LLM orchestration.
+  </description>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- ── Quarkus BOM ─────────────────────────────────────────── -->
+    <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+    <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+    <quarkus.platform.version>3.9.4</quarkus.platform.version>
+
+    <!-- ── LangChain4j BOM (must align with Quarkus extension) ─── -->
+    <quarkus-langchain4j.version>0.20.2</quarkus-langchain4j.version>
+  </properties>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  BOM imports                                                 -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <dependencyManagement>
+    <dependencies>
+      <!-- Quarkus BOM — pins all io.quarkus:* versions -->
+      <dependency>
+        <groupId>${quarkus.platform.group-id}</groupId>
+        <artifactId>${quarkus.platform.artifact-id}</artifactId>
+        <version>${quarkus.platform.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Quarkus LangChain4j BOM — pins ai.langchain4j:* versions -->
+      <dependency>
+        <groupId>io.quarkiverse.langchain4j</groupId>
+        <artifactId>quarkus-langchain4j-bom</artifactId>
+        <version>${quarkus-langchain4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  Dependencies                                                -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <dependencies>
+
+    <!-- ── Core Quarkus ──────────────────────────────────────── -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-openapi</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-config-yaml</artifactId>
+    </dependency>
+
+    <!-- ── Neo4j driver (official Quarkus extension) ─────────── -->
+    <!--
+        quarkus-neo4j wraps the official Neo4j Java driver and wires
+        the Driver bean into CDI automatically.
+    -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-neo4j</artifactId>
+    </dependency>
+
+    <!-- ── LangChain4j — core + OpenAI provider ──────────────── -->
+    <!--
+        quarkus-langchain4j-openai pulls in:
+          · langchain4j-core
+          · langchain4j-open-ai
+          · CDI integration (@RegisterAiService, @SystemMessage …)
+    -->
+    <dependency>
+      <groupId>io.quarkiverse.langchain4j</groupId>
+      <artifactId>quarkus-langchain4j-openai</artifactId>
+    </dependency>
+
+    <!-- ── Testing ───────────────────────────────────────────── -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Testcontainers for Neo4j (spin up real Neo4j in CI) -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-common</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>neo4j</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  Build                                                       -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <build>
+    <plugins>
+
+      <!-- Quarkus Maven plugin — dev mode, build, native -->
+      <plugin>
+        <groupId>${quarkus.platform.group-id}</groupId>
+        <artifactId>quarkus-maven-plugin</artifactId>
+        <version>${quarkus.platform.version}</version>
+        <extensions>true</extensions>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+              <goal>generate-code</goal>
+              <goal>generate-code-tests</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Enforce Java 21 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>21</release>
+          <compilerArgs>
+            <arg>--enable-preview</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <!-- Surefire — run JUnit 5 tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <systemPropertyVariables>
+            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+            <maven.home>${maven.home}</maven.home>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  Native profile (GraalVM / Mandrel)                         -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <profiles>
+    <profile>
+      <id>native</id>
+      <activation>
+        <property>
+          <name>native</name>
+        </property>
+      </activation>
+      <properties>
+        <skipITs>false</skipITs>
+        <quarkus.package.type>native</quarkus.package.type>
+      </properties>
+    </profile>
+  </profiles>
+
+</project>

@@ -1,0 +1,71 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Personalized Medicine AI — Local Development Stack
+#
+#  Start everything:
+#    docker compose -f docker/docker-compose.yml up -d
+#
+#  Stop & remove volumes:
+#    docker compose -f docker/docker-compose.yml down -v
+# ═══════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Neo4j Graph Database ─────────────────────────────────────────────────
+  neo4j:
+    image: neo4j:5.19-community
+    container_name: medai-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: "neo4j/medai-secret"
+      # Enable APOC plugin (useful for graph algorithms in a real PoC)
+      NEO4J_PLUGINS: '["apoc"]'
+      # Memory settings suitable for a development laptop
+      NEO4J_server_memory_heap_initial__size: "256m"
+      NEO4J_server_memory_heap_max__size: "512m"
+      NEO4J_server_memory_pagecache_size: "256m"
+    ports:
+      - "7474:7474"   # Neo4j Browser / HTTP API
+      - "7687:7687"   # Bolt protocol (used by the Java driver)
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+      # Mount init script so it can be run manually (see README)
+      - ./neo4j-init.cypher:/var/lib/neo4j/import/init.cypher:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Quarkus Application ──────────────────────────────────────────────────
+  #  Uncomment once you have built the fat-jar:
+  #    ./mvnw package -DskipTests
+  #
+  # app:
+  #   image: eclipse-temurin:21-jre-alpine
+  #   container_name: medai-app
+  #   depends_on:
+  #     neo4j:
+  #       condition: service_healthy
+  #   environment:
+  #     QUARKUS_NEO4J_URI:                          bolt://neo4j:7687
+  #     QUARKUS_NEO4J_AUTHENTICATION_USERNAME:      neo4j
+  #     QUARKUS_NEO4J_AUTHENTICATION_PASSWORD:      medai-secret
+  #     QUARKUS_LANGCHAIN4J_OPENAI_API_KEY:         ${OPENAI_API_KEY}
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ../target/quarkus-app:/app
+  #   command: ["java", "-jar", "/app/quarkus-run.jar"]
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/q/health/live"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
