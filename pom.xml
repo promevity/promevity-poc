@@ -126,6 +126,12 @@
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- AssertJ — Version wird durch das Quarkus-BOM verwaltet -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Testcontainers for Neo4j (spin up real Neo4j in CI) -->
     <dependency>
       <groupId>io.quarkus</groupId>
