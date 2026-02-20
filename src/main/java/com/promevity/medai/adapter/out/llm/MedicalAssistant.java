@@ -14,7 +14,7 @@ import io.quarkiverse.langchain4j.RegisterAiService;
  *
  * <p>LangChain4j generiert zur Build-Zeit einen CDI-Proxy, der jeden
  * Methodenaufruf an den konfigurierten LLM-Provider weiterleitet
- * (aktuell: OpenAI GPT-4o-mini, konfigurierbar via {@code application.properties}).
+ * (aktuell: Google AI Gemini 2.0 Flash, konfigurierbar via {@code application.properties}).
  *
  * <p>Prompt-Engineering-Hinweise:
  * <ul>

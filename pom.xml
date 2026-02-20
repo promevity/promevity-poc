@@ -103,16 +103,17 @@
       <version>${quarkus-neo4j.version}</version>
     </dependency>
 
-    <!-- ── LangChain4j — core + OpenAI provider ──────────────── -->
+    <!-- ── LangChain4j — core + Google AI Gemini provider ───────── -->
     <!--
-        quarkus-langchain4j-openai pulls in:
+        quarkus-langchain4j-google-ai-gemini pulls in:
           · langchain4j-core
-          · langchain4j-open-ai
+          · langchain4j-google-ai-gemini
           · CDI integration (@RegisterAiService, @SystemMessage …)
+        API key via https://aistudio.google.com/apikey (kostenloses Kontingent).
     -->
     <dependency>
       <groupId>io.quarkiverse.langchain4j</groupId>
-      <artifactId>quarkus-langchain4j-openai</artifactId>
+      <artifactId>quarkus-langchain4j-google-ai-gemini</artifactId>
     </dependency>
 
     <!-- ── Testing ───────────────────────────────────────────── -->
