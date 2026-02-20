@@ -32,7 +32,7 @@ services:
       - neo4j-data:/data
       - neo4j-logs:/logs
       # Mount init script so it can be run manually (see README)
-      - ./neo4j-init.cypher:/var/lib/neo4j/import/init.cypher:ro
+      - ./neo4j-init.cypher:/var/lib/neo4j/import/init.cypher
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
       interval: 10s
