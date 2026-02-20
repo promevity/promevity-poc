@@ -27,6 +27,9 @@
 
     <!-- ── LangChain4j BOM (must align with Quarkus extension) ─── -->
     <quarkus-langchain4j.version>0.20.2</quarkus-langchain4j.version>
+
+    <!-- ── Quarkiverse Neo4j extension (moved out of core BOM) ─── -->
+    <quarkus-neo4j.version>6.3.1</quarkus-neo4j.version>
   </properties>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -81,14 +84,17 @@
       <artifactId>quarkus-config-yaml</artifactId>
     </dependency>
 
-    <!-- ── Neo4j driver (official Quarkus extension) ─────────── -->
+    <!-- ── Neo4j driver (Quarkiverse extension) ─────────────────── -->
     <!--
-        quarkus-neo4j wraps the official Neo4j Java driver and wires
-        the Driver bean into CDI automatically.
+        quarkus-neo4j wurde aus dem Quarkus-Kern-BOM in die Quarkiverse-
+        Community verschoben. Die explizite Version ist daher erforderlich;
+        sie wird über die Property quarkus-neo4j.version gesteuert.
+        Das Extension wires den offiziellen Neo4j Java Driver als CDI-Bean.
     -->
     <dependency>
-      <groupId>io.quarkus</groupId>
+      <groupId>io.quarkiverse.neo4j</groupId>
       <artifactId>quarkus-neo4j</artifactId>
+      <version>${quarkus-neo4j.version}</version>
     </dependency>
 
     <!-- ── LangChain4j — core + OpenAI provider ──────────────── -->
