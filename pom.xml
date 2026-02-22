@@ -105,7 +105,7 @@
 
     <!-- ── LangChain4j — core + Google AI Gemini provider ───────── -->
     <!--
-        quarkus-langchain4j-google-ai-gemini pulls in:
+        quarkus-langchain4j-ai-gemini pulls in:
           · langchain4j-core
           · langchain4j-google-ai-gemini
           · CDI integration (@RegisterAiService, @SystemMessage …)
@@ -113,7 +113,7 @@
     -->
     <dependency>
       <groupId>io.quarkiverse.langchain4j</groupId>
-      <artifactId>quarkus-langchain4j-google-ai-gemini</artifactId>
+      <artifactId>quarkus-langchain4j-ai-gemini</artifactId>
       <version>${quarkus-langchain4j.version}</version>
     </dependency>
 
