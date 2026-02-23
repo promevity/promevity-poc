@@ -3,6 +3,7 @@ package com.promevity.medai.application.port.out;
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.Symptom;
 import com.promevity.medai.domain.model.SymptomHistoryEntry;
+import com.promevity.medai.domain.model.SymptomObservation;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -53,4 +54,13 @@ public interface PatientRepositoryPort {
      * im Digital-Twin-Graph zuerst erscheinen.
      */
     List<SymptomHistoryEntry> findSymptomHistory(String patientId);
+
+    /**
+     * Timeline-Retrieval: gibt alle einzelnen EXPERIENCES-Beziehungen eines Patienten
+     * zurück — je Kante eine Zeile (nicht dedupliziert), chronologisch aufsteigend.
+     *
+     * <p>Ermöglicht die Rekonstruktion des zeitlichen Verlaufs, um die kumulierte
+     * Diagnosewahrscheinlichkeit Schritt für Schritt darzustellen.
+     */
+    List<SymptomObservation> findAllSymptomObservations(String patientId);
 }

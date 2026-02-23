@@ -4,6 +4,7 @@ import com.promevity.medai.application.port.out.PatientRepositoryPort;
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.Symptom;
 import com.promevity.medai.domain.model.SymptomHistoryEntry;
+import com.promevity.medai.domain.model.SymptomObservation;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -162,6 +163,23 @@ public class Neo4jPatientRepository implements PatientRepositoryPort {
                 return result.list(record -> new SymptomHistoryEntry(
                         toSymptom(record.get("s").asNode()),
                         record.get("latestDate").asString("")));
+            });
+        }
+    }
+
+    @Override
+    public List<SymptomObservation> findAllSymptomObservations(String patientId) {
+        String cypher = """
+                MATCH (p:Patient {id: $id})-[r:EXPERIENCES]->(s:Symptom)
+                RETURN s, r.date AS observedDate
+                ORDER BY observedDate ASC
+                """;
+        try (Session session = session()) {
+            return session.executeRead(tx -> {
+                var result = tx.run(cypher, Values.parameters("id", patientId));
+                return result.list(record -> new SymptomObservation(
+                        toSymptom(record.get("s").asNode()),
+                        record.get("observedDate").asString("")));
             });
         }
     }

@@ -167,15 +167,29 @@ ON CREATE SET charlie.name = 'Charlie Bauer', charlie.age = 55;
 //    (Patient)-[:EXPERIENCES {date}]->(Symptom)
 //    Dates simulate a timeline of symptom observations.
 
-// Alice — Tachykardia + Fatigue + Weight Loss → strong Thyroid Dysfunction signal
+// Alice — 5-Punkte-Timeline für den "Gedächtnis des Graphen"-Aha-Moment
+//
+//  Datum        Neu               Kumulativ                      Bayes ≈
+//  2024-09-10   Fatigue           [Fatigue]                      ~20 % Anemia
+//  2024-11-05   Weight Loss       [Fatigue, Weight Loss]         ~28 % Thyroid
+//  2025-01-15   Tachykardia       [Fatigue, WL, Tachyk.]         ~45 % Thyroid
+//  2025-04-22   Tremor            [Fatigue, WL, Tachyk., Tremor] ~55 % Thyroid
+//  2025-08-30   Heat Intolerance  [...alle 5]                    ~65 % Thyroid
+
+MATCH (alice:Patient {id: 'patient-001'}), (f:Symptom {id: 'symptom-fatigue'})
+MERGE (alice)-[:EXPERIENCES {date: '2024-09-10'}]->(f);
+
+MATCH (alice:Patient {id: 'patient-001'}), (w:Symptom {id: 'symptom-weight-loss'})
+MERGE (alice)-[:EXPERIENCES {date: '2024-11-05'}]->(w);
+
 MATCH (alice:Patient {id: 'patient-001'}), (t:Symptom {id: 'symptom-tachykardia'})
 MERGE (alice)-[:EXPERIENCES {date: '2025-01-15'}]->(t);
 
-MATCH (alice:Patient {id: 'patient-001'}), (f:Symptom {id: 'symptom-fatigue'})
-MERGE (alice)-[:EXPERIENCES {date: '2025-01-15'}]->(f);
+MATCH (alice:Patient {id: 'patient-001'}), (tr:Symptom {id: 'symptom-tremor'})
+MERGE (alice)-[:EXPERIENCES {date: '2025-04-22'}]->(tr);
 
-MATCH (alice:Patient {id: 'patient-001'}), (w:Symptom {id: 'symptom-weight-loss'})
-MERGE (alice)-[:EXPERIENCES {date: '2025-01-20'}]->(w);
+MATCH (alice:Patient {id: 'patient-001'}), (h:Symptom {id: 'symptom-heat-intolerance'})
+MERGE (alice)-[:EXPERIENCES {date: '2025-08-30'}]->(h);
 
 // Bob — Fatigue + Pallor + Weakness → Anemia vs Thyroid competition
 MATCH (bob:Patient {id: 'patient-002'}), (f:Symptom {id: 'symptom-fatigue'})

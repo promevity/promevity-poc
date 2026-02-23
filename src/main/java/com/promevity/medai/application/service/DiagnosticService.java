@@ -3,8 +3,10 @@ package com.promevity.medai.application.service;
 import com.promevity.medai.application.port.in.DiagnoseResult;
 import com.promevity.medai.application.port.in.DiagnoseUseCase;
 import com.promevity.medai.application.port.in.GetPatientGraphUseCase;
+import com.promevity.medai.application.port.in.GetPatientTimelineUseCase;
 import com.promevity.medai.application.port.in.IngestWearableDataUseCase;
 import com.promevity.medai.application.port.in.PatientGraphResult;
+import com.promevity.medai.application.port.in.PatientTimelineResult;
 import com.promevity.medai.application.port.in.RegisterPatientUseCase;
 import com.promevity.medai.application.port.out.MedicalExplainerPort;
 import com.promevity.medai.application.port.out.PatientRepositoryPort;
@@ -12,6 +14,7 @@ import com.promevity.medai.application.port.out.WearableRepositoryPort;
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.RiskAssessment;
 import com.promevity.medai.domain.model.Symptom;
+import com.promevity.medai.domain.model.SymptomObservation;
 import com.promevity.medai.domain.model.SymptomSource;
 import com.promevity.medai.domain.model.VitalMeasurement;
 import com.promevity.medai.domain.model.VitalReading;
@@ -25,9 +28,11 @@ import jakarta.ws.rs.NotFoundException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -57,7 +62,7 @@ import java.util.stream.Collectors;
  * </pre>
  */
 @ApplicationScoped
-public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCase, IngestWearableDataUseCase, GetPatientGraphUseCase {
+public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCase, IngestWearableDataUseCase, GetPatientGraphUseCase, GetPatientTimelineUseCase {
 
     /** Zeitfenster für Vitaldaten-Abfrage (Demo: letzte 365 Tage, damit Seed-Daten greifen). */
     private static final int VITAL_LOOKBACK_HOURS = 365 * 24;
@@ -196,6 +201,55 @@ public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCas
                 .toList();
         Log.debugf("[Graph] Patient %s hat %d Symptom-Knoten im Digital Twin", patientId, symptoms.size());
         return new PatientGraphResult(patient.id(), patient.name(), patient.age(), symptoms);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GetPatientTimelineUseCase
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    public PatientTimelineResult getPatientTimeline(String patientId) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new NotFoundException(
+                        "Patient mit ID '%s' nicht gefunden".formatted(patientId)));
+
+        // Alle EXPERIENCES-Kanten chronologisch laden (eine Zeile pro Kante)
+        List<SymptomObservation> observations = patientRepository.findAllSymptomObservations(patientId);
+
+        // Nach Datum gruppieren (TreeMap = automatisch sortiert)
+        Map<String, List<Symptom>> byDate = new TreeMap<>();
+        for (SymptomObservation obs : observations) {
+            byDate.computeIfAbsent(obs.observedDate(), d -> new ArrayList<>())
+                  .add(obs.symptom());
+        }
+
+        // Für jedes Datum: kumulierte Symptommenge aufbauen + Bayes auswerten
+        List<PatientTimelineResult.TimelinePoint> points = new ArrayList<>();
+        Set<String> seenNames = new LinkedHashSet<>();
+        List<Symptom> cumulative = new ArrayList<>();
+
+        for (Map.Entry<String, List<Symptom>> entry : byDate.entrySet()) {
+            String date = entry.getKey();
+            List<Symptom> newSymptoms = entry.getValue().stream()
+                    .filter(s -> seenNames.add(s.name()))
+                    .toList();
+
+            if (newSymptoms.isEmpty()) continue; // keine neuen Symptome an diesem Datum
+
+            cumulative.addAll(newSymptoms);
+            RiskAssessment assessment = bayesianRiskService.assess(cumulative);
+
+            points.add(new PatientTimelineResult.TimelinePoint(
+                    date,
+                    newSymptoms.stream().map(Symptom::name).toList(),
+                    cumulative.stream().map(Symptom::name).toList(),
+                    assessment.diseaseName(),
+                    assessment.probabilityPercentage()
+            ));
+        }
+
+        Log.debugf("[Timeline] Patient %s: %d Zeitpunkte berechnet", patientId, points.size());
+        return new PatientTimelineResult(patientId, patient.name(), points);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

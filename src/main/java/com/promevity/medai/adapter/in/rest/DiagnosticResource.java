@@ -3,7 +3,9 @@ package com.promevity.medai.adapter.in.rest;
 import com.promevity.medai.application.port.in.DiagnoseResult;
 import com.promevity.medai.application.port.in.DiagnoseUseCase;
 import com.promevity.medai.application.port.in.GetPatientGraphUseCase;
+import com.promevity.medai.application.port.in.GetPatientTimelineUseCase;
 import com.promevity.medai.application.port.in.PatientGraphResult;
+import com.promevity.medai.application.port.in.PatientTimelineResult;
 import com.promevity.medai.application.port.in.RegisterPatientUseCase;
 import com.promevity.medai.domain.model.Patient;
 import io.quarkus.logging.Log;
@@ -58,6 +60,10 @@ public class DiagnosticResource {
     /** Primärer Port — Patient-Digital-Twin-Graph */
     @Inject
     GetPatientGraphUseCase patientGraphUseCase;
+
+    /** Primärer Port — Diagnose-Timeline */
+    @Inject
+    GetPatientTimelineUseCase patientTimelineUseCase;
 
     // ─────────────────────────────────────────────────────────────────────────
     // POST /api/diagnose/{patientId}
@@ -130,5 +136,31 @@ public class DiagnosticResource {
         Log.infof("[REST] GET /api/diagnose/patient/%s/graph", patientId);
         PatientGraphResult graph = patientGraphUseCase.getPatientGraph(patientId);
         return Response.ok(PatientGraphResponse.from(graph)).build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/diagnose/patient/{patientId}/timeline
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @GET
+    @Path("/patient/{patientId}/timeline")
+    @Operation(
+            summary = "Diagnose-Timeline abrufen",
+            description = """
+                    Gibt die chronologische Entwicklung der Diagnosewahrscheinlichkeit zurück.
+                    Für jeden Zeitpunkt, an dem neue Symptome beobachtet wurden, wird die
+                    kumulierte Bayes-Wahrscheinlichkeit berechnet — das "Gedächtnis des Graphen".
+                    """
+    )
+    @APIResponse(responseCode = "200",
+            content = @Content(schema = @Schema(implementation = PatientTimelineResult.class)))
+    @APIResponse(responseCode = "404", description = "Patient nicht gefunden")
+    public Response getPatientTimeline(
+            @Parameter(description = "Logische Patienten-ID", required = true)
+            @PathParam("patientId") String patientId
+    ) {
+        Log.infof("[REST] GET /api/diagnose/patient/%s/timeline", patientId);
+        PatientTimelineResult timeline = patientTimelineUseCase.getPatientTimeline(patientId);
+        return Response.ok(timeline).build();
     }
 }

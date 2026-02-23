@@ -383,6 +383,41 @@
       border-radius: 50%;
       animation: spin .7s linear infinite;
     }
+
+    /* ── Timeline — Diagnose-Verlauf ─────────────────────────────── */
+    .timeline-svg-wrap { width: 100%; overflow-x: auto; }
+    .timeline-svg { display: block; width: 100%; min-width: 320px; }
+    .tl-grid { stroke: #e2e8f0; stroke-width: 1; }
+    .tl-axis-label { font-size: 10px; fill: #94a3b8; font-family: Inter, sans-serif; }
+    .tl-pct-label  { font-size: 10px; font-weight: 700; font-family: Inter, sans-serif; text-anchor: middle; }
+    .tl-date-label { font-size: 9px;  fill: #64748b;    font-family: Inter, sans-serif; text-anchor: middle; }
+    .tl-dot { cursor: pointer; }
+
+    .tl-events {
+      display: flex; gap: 0;
+      padding: .25rem 0 .5rem;
+      border-top: 1px dashed var(--border);
+      margin-top: .25rem;
+    }
+    .tl-event-col {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: .2rem;
+      padding: .4rem .2rem 0;
+      border-left: 1px dashed #e2e8f0;
+      min-width: 0;
+    }
+    .tl-event-col:first-child { border-left: none; }
+    .tl-symptom-badge {
+      background: #f1f5f9; color: #475569;
+      border-radius: 4px; padding: .15rem .4rem;
+      font-size: .67rem; font-weight: 500;
+      text-align: center; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .tl-today-badge { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .tl-loading { display: flex; align-items: center; justify-content: center;
+                  gap: .5rem; height: 80px; color: var(--muted); font-size: .82rem; }
+    .tl-empty   { padding: 1.5rem; text-align: center;
+                  font-size: .82rem; color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -560,6 +595,16 @@
           <div id="cyContainer">
             <div class="graph-empty">Graph erscheint nach erster Diagnose.</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Timeline: Gedächtnis des Graphen -->
+      <div class="card fade-in" id="timelineCard">
+        <div class="card-header">
+          <span>📅 Diagnose-Verlauf — Gedächtnis des Graphen</span>
+        </div>
+        <div class="card-body" style="padding:.75rem 1rem;" id="timelineBody">
+          <div class="tl-empty">Timeline erscheint nach Patientenauswahl.</div>
         </div>
       </div>
 
@@ -792,6 +837,9 @@ async function runDiagnosis() {
     const data = await dRes.json();
     displayResults(data);
 
+    // Reload timeline so the new diagnosis point ("heute") appears
+    loadAndRenderTimeline(patientId);
+
   } catch (e) {
     errMsg.textContent = e.message;
     errMsg.classList.add('visible');
@@ -1004,17 +1052,164 @@ async function loadAndRenderGraph(patientId, symptomSources) {
   }
 }
 
+// ── Timeline (Diagnose-Verlauf — Gedächtnis des Graphen) ──────────────────────
+
+async function loadAndRenderTimeline(patientId) {
+  const body = document.getElementById('timelineBody');
+  body.innerHTML = '<div class="tl-loading"><div class="mini-spinner"></div>Timeline wird geladen…</div>';
+
+  try {
+    const res = await fetch(`/api/diagnose/patient/${patientId}/timeline`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (!data.points || data.points.length === 0) {
+      body.innerHTML = '<div class="tl-empty">Noch keine historischen Daten für diesen Patienten vorhanden.</div>';
+      return;
+    }
+    renderTimeline(data.points, body);
+  } catch (err) {
+    body.innerHTML = `<div class="tl-empty">Timeline konnte nicht geladen werden: ${err.message}</div>`;
+  }
+}
+
+function renderTimeline(points, container) {
+  const W = 600, H = 180;
+  const padL = 38, padR = 16, padT = 22, padB = 32;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const n = points.length;
+
+  function xOf(i)   { return padL + (n > 1 ? (i / (n - 1)) * innerW : innerW / 2); }
+  function yOf(pct) { return padT + innerH - (pct / 100) * innerH; }
+  function probColor(pct) {
+    if (pct < 35) return '#22c55e';
+    if (pct < 60) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class', 'timeline-svg');
+  svg.style.overflow = 'visible';
+
+  // Horizontal grid lines + Y-axis labels
+  [0, 25, 50, 75, 100].forEach(pct => {
+    const y = yOf(pct);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', padL + innerW);
+    line.setAttribute('y1', y);    line.setAttribute('y2', y);
+    line.setAttribute('class', 'tl-grid');
+    svg.appendChild(line);
+
+    const lbl = document.createElementNS(NS, 'text');
+    lbl.setAttribute('x', padL - 5); lbl.setAttribute('y', y + 3.5);
+    lbl.setAttribute('text-anchor', 'end');
+    lbl.setAttribute('class', 'tl-axis-label');
+    lbl.textContent = pct + '%';
+    svg.appendChild(lbl);
+  });
+
+  // Colored line segments
+  for (let i = 0; i < n - 1; i++) {
+    const seg = document.createElementNS(NS, 'line');
+    seg.setAttribute('x1', xOf(i));   seg.setAttribute('y1', yOf(points[i].probabilityPercentage));
+    seg.setAttribute('x2', xOf(i+1)); seg.setAttribute('y2', yOf(points[i+1].probabilityPercentage));
+    seg.setAttribute('stroke', probColor((points[i].probabilityPercentage + points[i+1].probabilityPercentage) / 2));
+    seg.setAttribute('stroke-width', '2.5');
+    seg.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(seg);
+  }
+
+  // Dots, probability labels, date labels
+  points.forEach((pt, i) => {
+    const cx = xOf(i), cy = yOf(pt.probabilityPercentage);
+    const isLast = i === n - 1;
+    const color = probColor(pt.probabilityPercentage);
+
+    // Pulse ring on last point
+    if (isLast) {
+      const ring = document.createElementNS(NS, 'circle');
+      ring.setAttribute('cx', cx); ring.setAttribute('cy', cy); ring.setAttribute('r', '11');
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', color); ring.setAttribute('stroke-width', '2');
+      ring.setAttribute('opacity', '0.3');
+      svg.appendChild(ring);
+    }
+
+    // Dot
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
+    dot.setAttribute('r', isLast ? '7' : '5.5');
+    dot.setAttribute('fill', color);
+    dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', '2');
+    dot.setAttribute('class', 'tl-dot');
+    const title = document.createElementNS(NS, 'title');
+    title.textContent = `${pt.date}: ${pt.probabilityPercentage.toFixed(1)} % ${pt.topDisease}\n+ ${pt.addedSymptoms.join(', ')}`;
+    dot.appendChild(title);
+    svg.appendChild(dot);
+
+    // Probability label above dot
+    const pLbl = document.createElementNS(NS, 'text');
+    pLbl.setAttribute('x', cx); pLbl.setAttribute('y', cy - 12);
+    pLbl.setAttribute('class', 'tl-pct-label');
+    pLbl.setAttribute('fill', color);
+    pLbl.textContent = pt.probabilityPercentage.toFixed(0) + '%';
+    svg.appendChild(pLbl);
+
+    // Date label below x-axis
+    const dLbl = document.createElementNS(NS, 'text');
+    dLbl.setAttribute('x', cx); dLbl.setAttribute('y', padT + innerH + 14);
+    dLbl.setAttribute('class', 'tl-date-label');
+    dLbl.textContent = tlFormatDate(pt.date);
+    svg.appendChild(dLbl);
+  });
+
+  // ── Symptom event badges below chart ────────────────────────────
+  const eventsDiv = document.createElement('div');
+  eventsDiv.className = 'tl-events';
+
+  points.forEach((pt, i) => {
+    const col = document.createElement('div');
+    col.className = 'tl-event-col';
+    pt.addedSymptoms.forEach(sym => {
+      const badge = document.createElement('span');
+      badge.className = 'tl-symptom-badge' + (i === n - 1 ? ' tl-today-badge' : '');
+      badge.textContent = sym;
+      badge.title = pt.date;
+      col.appendChild(badge);
+    });
+    eventsDiv.appendChild(col);
+  });
+
+  container.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'timeline-svg-wrap';
+  wrap.appendChild(svg);
+  container.appendChild(wrap);
+  container.appendChild(eventsDiv);
+}
+
+function tlFormatDate(iso) {
+  const [y, m] = iso.split('-');
+  const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  return `${months[parseInt(m, 10) - 1]} '${y.slice(2)}`;
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   initGauge();
   selectPreset('none');
-  // Pre-load graph for default patient on page load
-  loadAndRenderGraph(document.getElementById('patientSelect').value, []);
+  const patientId = document.getElementById('patientSelect').value;
+  loadAndRenderGraph(patientId, []);
+  loadAndRenderTimeline(patientId);
 });
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('patientSelect').addEventListener('change', e => {
     loadAndRenderGraph(e.target.value, []);
+    loadAndRenderTimeline(e.target.value);
   });
 });
 </script>
