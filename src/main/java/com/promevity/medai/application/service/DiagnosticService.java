@@ -2,7 +2,9 @@ package com.promevity.medai.application.service;
 
 import com.promevity.medai.application.port.in.DiagnoseResult;
 import com.promevity.medai.application.port.in.DiagnoseUseCase;
+import com.promevity.medai.application.port.in.GetPatientGraphUseCase;
 import com.promevity.medai.application.port.in.IngestWearableDataUseCase;
+import com.promevity.medai.application.port.in.PatientGraphResult;
 import com.promevity.medai.application.port.in.RegisterPatientUseCase;
 import com.promevity.medai.application.port.out.MedicalExplainerPort;
 import com.promevity.medai.application.port.out.PatientRepositoryPort;
@@ -55,7 +57,7 @@ import java.util.stream.Collectors;
  * </pre>
  */
 @ApplicationScoped
-public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCase, IngestWearableDataUseCase {
+public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCase, IngestWearableDataUseCase, GetPatientGraphUseCase {
 
     /** Zeitfenster für Vitaldaten-Abfrage (Demo: letzte 365 Tage, damit Seed-Daten greifen). */
     private static final int VITAL_LOOKBACK_HOURS = 365 * 24;
@@ -175,6 +177,25 @@ public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCas
         patientRepository.save(patient);
         Log.infof("Patient registriert [id=%s, name=%s]", patient.id(), patient.name());
         return patient;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GetPatientGraphUseCase
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    public PatientGraphResult getPatientGraph(String patientId) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new NotFoundException(
+                        "Patient mit ID '%s' nicht gefunden".formatted(patientId)));
+        List<PatientGraphResult.SymptomEntry> symptoms = patientRepository
+                .findSymptomHistory(patientId)
+                .stream()
+                .map(h -> new PatientGraphResult.SymptomEntry(
+                        h.symptom().id(), h.symptom().name(), h.latestDate()))
+                .toList();
+        Log.debugf("[Graph] Patient %s hat %d Symptom-Knoten im Digital Twin", patientId, symptoms.size());
+        return new PatientGraphResult(patient.id(), patient.name(), patient.age(), symptoms);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ package com.promevity.medai.application.port.out;
 
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.Symptom;
+import com.promevity.medai.domain.model.SymptomHistoryEntry;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -43,4 +44,13 @@ public interface PatientRepositoryPort {
      * genutzt, um präzise, aktuelle Evidenz für das Bayes-Netz zu liefern.
      */
     List<Symptom> findSymptomsByPatientId(String patientId);
+
+    /**
+     * Graph-Visualisierung: gibt alle Symptom-Einträge eines Patienten
+     * inklusive des letzten Beobachtungsdatums zurück.
+     *
+     * <p>Absteigend sortiert nach {@code latestDate}, damit neueste Symptome
+     * im Digital-Twin-Graph zuerst erscheinen.
+     */
+    List<SymptomHistoryEntry> findSymptomHistory(String patientId);
 }

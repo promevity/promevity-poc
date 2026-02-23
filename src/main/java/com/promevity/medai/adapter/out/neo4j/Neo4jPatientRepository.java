@@ -3,6 +3,7 @@ package com.promevity.medai.adapter.out.neo4j;
 import com.promevity.medai.application.port.out.PatientRepositoryPort;
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.Symptom;
+import com.promevity.medai.domain.model.SymptomHistoryEntry;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -144,6 +145,23 @@ public class Neo4jPatientRepository implements PatientRepositoryPort {
             return session.executeRead(tx -> {
                 var result = tx.run(cypher, Values.parameters("id", patientId));
                 return result.list(record -> toSymptom(record.get("s").asNode()));
+            });
+        }
+    }
+
+    @Override
+    public List<SymptomHistoryEntry> findSymptomHistory(String patientId) {
+        String cypher = """
+                MATCH (p:Patient {id: $id})-[r:EXPERIENCES]->(s:Symptom)
+                RETURN s, max(r.date) AS latestDate
+                ORDER BY latestDate DESC
+                """;
+        try (Session session = session()) {
+            return session.executeRead(tx -> {
+                var result = tx.run(cypher, Values.parameters("id", patientId));
+                return result.list(record -> new SymptomHistoryEntry(
+                        toSymptom(record.get("s").asNode()),
+                        record.get("latestDate").asString("")));
             });
         }
     }

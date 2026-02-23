@@ -2,6 +2,8 @@ package com.promevity.medai.adapter.in.rest;
 
 import com.promevity.medai.application.port.in.DiagnoseResult;
 import com.promevity.medai.application.port.in.DiagnoseUseCase;
+import com.promevity.medai.application.port.in.GetPatientGraphUseCase;
+import com.promevity.medai.application.port.in.PatientGraphResult;
 import com.promevity.medai.application.port.in.RegisterPatientUseCase;
 import com.promevity.medai.domain.model.Patient;
 import io.quarkus.logging.Log;
@@ -53,6 +55,10 @@ public class DiagnosticResource {
     @Inject
     RegisterPatientUseCase registerPatientUseCase;
 
+    /** Primärer Port — Patient-Digital-Twin-Graph */
+    @Inject
+    GetPatientGraphUseCase patientGraphUseCase;
+
     // ─────────────────────────────────────────────────────────────────────────
     // POST /api/diagnose/{patientId}
     // ─────────────────────────────────────────────────────────────────────────
@@ -98,5 +104,31 @@ public class DiagnosticResource {
         Log.infof("[REST] POST /api/diagnose/patient [id=%s]", patient.id());
         Patient saved = registerPatientUseCase.register(patient);
         return Response.status(Response.Status.CREATED).entity(saved).build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/diagnose/patient/{patientId}/graph
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @GET
+    @Path("/patient/{patientId}/graph")
+    @Operation(
+            summary = "Patient Digital Twin Graph abrufen",
+            description = """
+                    Gibt alle Symptom-Knoten und EXPERIENCES-Kanten eines Patienten
+                    aus dem Neo4j Knowledge Graph zurück — bereit für die
+                    Cytoscape.js-Visualisierung im Browser.
+                    """
+    )
+    @APIResponse(responseCode = "200",
+            content = @Content(schema = @Schema(implementation = PatientGraphResponse.class)))
+    @APIResponse(responseCode = "404", description = "Patient nicht gefunden")
+    public Response getPatientGraph(
+            @Parameter(description = "Logische Patienten-ID", required = true)
+            @PathParam("patientId") String patientId
+    ) {
+        Log.infof("[REST] GET /api/diagnose/patient/%s/graph", patientId);
+        PatientGraphResult graph = patientGraphUseCase.getPatientGraph(patientId);
+        return Response.ok(PatientGraphResponse.from(graph)).build();
     }
 }

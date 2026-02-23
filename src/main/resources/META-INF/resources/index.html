@@ -6,6 +6,7 @@
   <title>Promevity — Personalized Medicine AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -323,6 +324,65 @@
       animation: fadeIn .4s ease;
     }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    /* ── Digital Twin Graph ──────────────────────────────────────────── */
+    .graph-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .graph-legend {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      font-size: .7rem;
+      color: var(--muted);
+    }
+    .graph-legend span {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    #cyContainer {
+      width: 100%;
+      height: 340px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .graph-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: .82rem;
+      font-style: italic;
+    }
+    .graph-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: .5rem;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+    .graph-loading .mini-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -480,6 +540,26 @@
         <div class="card-header">💡 KI-Erklärung</div>
         <div class="card-body">
           <p class="explanation-text" id="explanationText"></p>
+        </div>
+      </div>
+
+      <!-- Digital Twin Graph -->
+      <div class="card fade-in" id="graphCard">
+        <div class="card-header">
+          <div class="graph-card-header" style="width:100%;">
+            <span>🕸️ Patient Digital Twin — Knowledge Graph</span>
+            <div class="graph-legend">
+              <span><span class="legend-dot" style="background:#1e40af;"></span> Text-NLP</span>
+              <span><span class="legend-dot" style="background:#0e7490;"></span> Garmin</span>
+              <span><span class="legend-dot" style="background:#7c3aed;"></span> Text+Garmin</span>
+              <span><span class="legend-dot" style="background:#64748b;"></span> Vorgeschichte</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-body" style="padding:.75rem;">
+          <div id="cyContainer">
+            <div class="graph-empty">Graph erscheint nach erster Diagnose.</div>
+          </div>
         </div>
       </div>
 
@@ -753,12 +833,189 @@ function displayResults(data) {
 
   // Explanation
   document.getElementById('explanationText').textContent = data.explanation || '';
+
+  // Digital Twin Graph — load asynchronously after results are shown
+  const patientId = document.getElementById('patientSelect').value;
+  loadAndRenderGraph(patientId, data.symptomSources);
+}
+
+// ── Digital Twin Graph (Cytoscape.js) ─────────────────────────────────────────
+
+// Source → node color mapping
+const NODE_COLORS = {
+  TEXT:        '#1e40af',
+  GARMIN:      '#0e7490',
+  'TEXT+GARMIN': '#7c3aed',
+  VERLAUF:     '#64748b',
+};
+
+let cyInstance = null;
+
+async function loadAndRenderGraph(patientId, symptomSources) {
+  const container = document.getElementById('cyContainer');
+  container.innerHTML = '<div class="graph-loading"><div class="mini-spinner"></div>Graph wird geladen…</div>';
+
+  try {
+    const res = await fetch(`/api/diagnose/patient/${patientId}/graph`);
+    if (!res.ok) throw new Error(`Graph-API: ${res.status}`);
+    const graph = await res.json();
+
+    // Build source lookup: symptomName → source
+    const sourceMap = {};
+    (symptomSources || []).forEach(s => { sourceMap[s.symptomName] = s.source; });
+
+    // Build Cytoscape elements
+    const elements = [];
+
+    // Patient node (center)
+    elements.push({
+      data: {
+        id: graph.patientNode.id,
+        label: graph.patientNode.label,
+        type: 'PATIENT',
+        color: '#0f4c81',
+        textColor: '#ffffff',
+        size: 54,
+      }
+    });
+
+    // Symptom nodes
+    graph.symptomNodes.forEach(n => {
+      const source = sourceMap[n.label] || 'VERLAUF';
+      elements.push({
+        data: {
+          id: n.id,
+          label: n.label,
+          type: 'SYMPTOM',
+          source,
+          color: NODE_COLORS[source] || NODE_COLORS.VERLAUF,
+          textColor: '#ffffff',
+          size: 40,
+        }
+      });
+    });
+
+    // Edges
+    graph.edges.forEach((e, i) => {
+      elements.push({
+        data: {
+          id: `edge-${i}`,
+          source: e.from,
+          target: e.to,
+          label: e.date || '',
+        }
+      });
+    });
+
+    // Destroy previous instance
+    if (cyInstance) { cyInstance.destroy(); cyInstance = null; }
+    container.innerHTML = '';
+
+    cyInstance = cytoscape({
+      container,
+      elements,
+      layout: {
+        name: 'cose',
+        animate: true,
+        animationDuration: 600,
+        nodeOverlap: 12,
+        idealEdgeLength: 110,
+        nodeRepulsion: () => 8000,
+        gravity: 0.3,
+        numIter: 500,
+        fit: true,
+        padding: 24,
+      },
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'background-color': 'data(color)',
+            'label': 'data(label)',
+            'color': 'data(textColor)',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'font-size': '10px',
+            'font-family': 'Inter, sans-serif',
+            'font-weight': '600',
+            'text-wrap': 'wrap',
+            'text-max-width': '80px',
+            'width': 'data(size)',
+            'height': 'data(size)',
+            'border-width': 2,
+            'border-color': 'rgba(255,255,255,0.4)',
+            'text-outline-width': 0,
+          }
+        },
+        {
+          selector: 'node[type="PATIENT"]',
+          style: {
+            'shape': 'ellipse',
+            'border-width': 3,
+            'border-color': '#fff',
+            'font-size': '11px',
+          }
+        },
+        {
+          selector: 'node[type="SYMPTOM"]',
+          style: {
+            'shape': 'roundrectangle',
+          }
+        },
+        {
+          selector: 'edge',
+          style: {
+            'width': 1.5,
+            'line-color': '#cbd5e1',
+            'target-arrow-color': '#94a3b8',
+            'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier',
+            'label': 'data(label)',
+            'font-size': '8px',
+            'color': '#94a3b8',
+            'text-background-color': '#f8fafc',
+            'text-background-opacity': 1,
+            'text-background-padding': '2px',
+          }
+        },
+        {
+          selector: ':selected',
+          style: {
+            'border-width': 3,
+            'border-color': '#f59e0b',
+          }
+        }
+      ],
+    });
+
+    // Show tooltip on node hover
+    cyInstance.on('mouseover', 'node', evt => {
+      const node = evt.target;
+      if (node.data('type') === 'SYMPTOM') {
+        node.style('opacity', 0.85);
+      }
+    });
+    cyInstance.on('mouseout', 'node', evt => {
+      evt.target.style('opacity', 1);
+    });
+
+  } catch (err) {
+    container.innerHTML = `<div class="graph-empty">Graph konnte nicht geladen werden: ${err.message}</div>`;
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   initGauge();
   selectPreset('none');
+  // Pre-load graph for default patient on page load
+  loadAndRenderGraph(document.getElementById('patientSelect').value, []);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('patientSelect').addEventListener('change', e => {
+    loadAndRenderGraph(e.target.value, []);
+  });
 });
 </script>
 
