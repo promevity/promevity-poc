@@ -104,6 +104,7 @@ public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCas
                 symptomNames,
                 assessment.diseaseName(),
                 assessment.probabilityPercentage(),
+                assessment.differentialDiagnoses(),
                 explanation
         );
     }

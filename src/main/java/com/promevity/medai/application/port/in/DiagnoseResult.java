@@ -1,5 +1,7 @@
 package com.promevity.medai.application.port.in;
 
+import com.promevity.medai.domain.model.DifferentialDiagnosis;
+
 import java.util.List;
 
 /**
@@ -15,6 +17,7 @@ import java.util.List;
  * @param allSymptoms           alle bekannten Symptome aus dem Knowledge Graph
  * @param diseaseName           Krankheit mit höchster Posteriori-Wahrscheinlichkeit
  * @param probabilityPercentage Wahrscheinlichkeit in Prozent
+ * @param differentialDiagnoses alle Erkrankungen absteigend nach Wahrscheinlichkeit sortiert
  * @param explanation           patientengerechte LLM-Erklärung
  */
 public record DiagnoseResult(
@@ -22,5 +25,6 @@ public record DiagnoseResult(
         List<String> allSymptoms,
         String diseaseName,
         double probabilityPercentage,
+        List<DifferentialDiagnosis> differentialDiagnoses,
         String explanation
 ) {}

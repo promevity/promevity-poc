@@ -86,4 +86,32 @@ class SymptomExtractorTest {
         assertThat(result).extracting(Symptom::name)
                 .contains(Symptom.TACHYKARDIA, Symptom.FATIGUE);
     }
+
+    @Test
+    @DisplayName("'chest pain' → Chest Pain")
+    void chestPain_mapptAufChestPain() {
+        List<Symptom> result = extractor.extract("I have chest pain and shortness of breath");
+
+        assertThat(result).extracting(Symptom::name)
+                .contains(Symptom.CHEST_PAIN, Symptom.BREATHLESSNESS);
+    }
+
+    @Test
+    @DisplayName("'tremor' und 'weight loss' → Tremor + Weight Loss")
+    void tremorUndWeightLoss_erkannt() {
+        List<Symptom> result = extractor.extract("I noticed tremor in my hands and weight loss");
+
+        assertThat(result).extracting(Symptom::name)
+                .contains(Symptom.TREMOR, Symptom.WEIGHT_LOSS);
+    }
+
+    @Test
+    @DisplayName("'weakness' → Weakness (nicht Fatigue)")
+    void weakness_mapptAufWeakness() {
+        List<Symptom> result = extractor.extract("I feel a lot of weakness in my arms");
+
+        assertThat(result).extracting(Symptom::name)
+                .contains(Symptom.WEAKNESS)
+                .doesNotContain(Symptom.FATIGUE);
+    }
 }

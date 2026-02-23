@@ -1,127 +1,143 @@
 package com.promevity.medai.domain.service;
 
+import com.promevity.medai.application.port.out.DiseaseKnowledgePort;
+import com.promevity.medai.domain.model.DifferentialDiagnosis;
+import com.promevity.medai.domain.model.DiseaseCptData;
 import com.promevity.medai.domain.model.RiskAssessment;
 import com.promevity.medai.domain.model.Symptom;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Domain Service — Bayesianischer Risiko-Kalkulator (Layer 3).
+ * Domain Service — Graph-getriebener Bayesianischer Risiko-Kalkulator.
  *
  * <p><b>Hexagonale Architektur — Domain Layer</b><br>
- * Dieser Service kapselt die reine Geschäftslogik der probabilistischen
- * Inferenz. Er hat <em>keine</em> Abhängigkeiten zu Datenbanken, HTTP oder
- * LLMs — lediglich CDI ({@code @ApplicationScoped}) wird als pragmatischer
- * Kompromiss im Quarkus-Kontext akzeptiert.
+ * Dieser Service kapselt die probabilistische Inferenz-Logik.
+ * Die CPT-Parameter (Priors und Likelihoods) werden zur Laufzeit aus dem
+ * Neo4j-Knowledge-Graph bezogen — über den sekundären Port
+ * {@link DiseaseKnowledgePort}.  Dadurch ist die Wissensbasis ohne
+ * Code-Änderungen erweiterbar (neue Krankheiten, angepasste Likelihoods).
  *
- * <h2>Naïve-Bayes-Formel</h2>
+ * <h2>Naïve-Bayes-Formel (pro Erkrankung)</h2>
  * <pre>
  *   P(D|E) = [P(D) × ∏ P(eᵢ|D)] / [P(D) × ∏ P(eᵢ|D)  +  P(¬D) × ∏ P(eᵢ|¬D)]
+ *
+ *   Annahme: bedingte Unabhängigkeit der Symptome gegeben D.
+ *   Nur beobachtete Symptome fließen ein; fehlendes Symptom liefert
+ *   keine Gegenevidence (offene-Welt-Annahme).
  * </pre>
  *
- * <h2>Kalibrierte Parameter (PoC)</h2>
+ * <h2>Multi-Disease Ranking (Differential Diagnosis)</h2>
  * <pre>
- * ┌─────────────────────────────────────────────────────────────────────┐
- * │  Evidenz                           │ Krankheit           │  P(D|E) │
- * ├─────────────────────────────────────────────────────────────────────┤
- * │  {Tachykardia, Fatigue}            │ Schilddrüsen-Dysfkt │  ≈ 83 % │
- * │  {Tachykardia}                     │ Schilddrüsen-Dysfkt │  ≈ 41 % │
- * │  {Fatigue}                         │ Schilddrüsen-Dysfkt │  ≈ 25 % │
- * │  {}  (keine Symptome)              │ Schilddrüsen-Dysfkt │  ≈ 15 % │
- * └─────────────────────────────────────────────────────────────────────┘
+ *   Für jede Erkrankung Di wird P(Di|E) unabhängig berechnet.
+ *   Das Ergebnis ist ein absteigend sortiertes Ranking aller Erkrankungen
+ *   (Differenzialdiagnose-Liste) plus der Top-1-Erkrankung als Hauptbefund.
+ * </pre>
  *
- * Hinweis Modellierung: Tachykardia und Fatigue ko-okkurrieren bei
- * Hyperthyreose über unterschiedliche Pfade (HR-Erhöhung vs. Muskel-
- * schwäche). Die Joint-CPT P(T,F | D) ≠ P(T|D)×P(F|D) bildet diese
- * Korrelation ab; reine Naïve-Bayes-Unabhängigkeit würde P(D|T,F) auf
- * ≈ 55 % begrenzen — medizinisch zu konservativ.
+ * <h2>Kalibrierte CPT-Werte (aus Neo4j, PoC-Daten)</h2>
+ * <pre>
+ * ┌────────────────────┬────────────────────────────────────┬──────────┐
+ * │  Evidenz           │  Top-Erkrankung                    │  P(D|E)  │
+ * ├────────────────────┬────────────────────────────────────┼──────────┤
+ * │  {Tachy, Fatigue}  │  Thyroid Dysfunction               │  ≈ 54 %  │
+ * │  {Tachy}           │  Thyroid Dysfunction               │  ≈ 40 %  │
+ * │  {Fatigue}         │  Thyroid Dysfunction / Anemia      │  ≈ 24 %  │
+ * │  {}  (keine)       │  Thyroid Dysfunction (Prior-Rang)  │  ≈ 15 %  │
+ * └────────────────────┴────────────────────────────────────┴──────────┘
  * </pre>
  */
 @ApplicationScoped
 public class BayesianRiskService {
 
-    private static final String THYROID_DYSFUNCTION = "Thyroid Dysfunction";
-
-    // ── Prior P(D) ────────────────────────────────────────────────────────────
-    private static final double PRIOR_THYROID = 0.15;
-
-    // ── Marginale CPTs  P(symptom | D)  /  P(symptom | ¬D) ─────────────────
-    // Kalibriert auf: P(D|Tachy) ≈ 41 %,  P(D|Fatigue) ≈ 25 %
-    private static final double P_TACHYKARDIA_GIVEN_THYROID     = 0.80;
-    private static final double P_TACHYKARDIA_GIVEN_NO_THYROID  = 0.20;
-    private static final double P_FATIGUE_GIVEN_THYROID          = 0.75;
-    private static final double P_FATIGUE_GIVEN_NO_THYROID       = 0.40;
-
-    // ── Joint-CPT  P(Tachy ∧ Fatigue | D)  /  P(Tachy ∧ Fatigue | ¬D) ──────
-    // Tachykardia und Fatigue ko-okkurrieren bei Hyperthyreose stark.
-    // Naive-Bayes-Unabhängigkeit würde P(D|T,F) ≈ 55 % ergeben (zu niedrig).
-    // Die explizite Joint-CPT modelliert die medizinisch bekannte Korrelation.
-    // Kalibriert auf: P(D|Tachy,Fatigue) ≈ 83 %
-    private static final double P_BOTH_GIVEN_THYROID     = 0.80;
-    private static final double P_BOTH_GIVEN_NO_THYROID  = 0.03;
+    @Inject
+    DiseaseKnowledgePort diseaseKnowledgePort;
 
     /**
-     * Berechnet die posteriore Krankheitswahrscheinlichkeit auf Basis der
-     * beobachteten Symptome des Patienten.
+     * Berechnet für jede bekannte Erkrankung die posteriore Wahrscheinlichkeit
+     * und gibt ein nach Wahrscheinlichkeit sortiertes {@link RiskAssessment}
+     * zurück.
      *
      * @param symptoms vollständige Symptomliste aus dem Knowledge Graph
-     * @return {@link RiskAssessment} mit der wahrscheinlichsten Erkrankung
+     * @return {@link RiskAssessment} mit Top-1-Erkrankung und Differenzialdiagnose-Ranking
      */
     public RiskAssessment assess(List<Symptom> symptoms) {
-        Set<String> names = symptoms.stream()
+        Set<String> observed = symptoms.stream()
                 .map(Symptom::name)
                 .collect(Collectors.toSet());
 
-        Log.debugf("[BayesNet] Eingabe-Evidenz: %s", names);
+        Log.debugf("[BayesNet] Eingabe-Evidenz: %s", observed);
 
-        double posterior    = computeThyroidPosterior(names);
-        double pct          = Math.round(posterior * 1000.0) / 10.0;
-        List<String> evidence = List.copyOf(names);
+        List<DiseaseCptData> diseases = diseaseKnowledgePort.loadAll();
 
-        RiskAssessment result = RiskAssessment.of(THYROID_DYSFUNCTION, pct, evidence);
-        Log.infof("[BayesNet] Ergebnis: %s → %.1f %%", result.diseaseName(), result.probabilityPercentage());
-        return result;
+        if (diseases.isEmpty()) {
+            Log.warn("[BayesNet] Keine CPT-Daten verfügbar — gebe leeres Assessment zurück");
+            return RiskAssessment.of("Unknown", 0.0, List.of(), List.of());
+        }
+
+        // Posteriori für jede Erkrankung berechnen und absteigend sortieren
+        List<DifferentialDiagnosis> differentials = diseases.stream()
+                .map(d -> {
+                    double posterior = computePosterior(d, observed);
+                    double pct = Math.round(posterior * 1000.0) / 10.0;
+                    return new DifferentialDiagnosis(d.diseaseName(), pct);
+                })
+                .sorted(Comparator.comparingDouble(DifferentialDiagnosis::probabilityPercentage).reversed())
+                .toList();
+
+        DifferentialDiagnosis top = differentials.get(0);
+        List<String> evidence = List.copyOf(observed);
+
+        Log.infof("[BayesNet] Top-Erkrankung: %s → %.1f %%  |  Differentials: %s",
+                top.diseaseName(), top.probabilityPercentage(),
+                differentials.stream()
+                        .map(dd -> dd.diseaseName() + "=" + dd.probabilityPercentage() + "%")
+                        .collect(Collectors.joining(", ")));
+
+        return RiskAssessment.of(top.diseaseName(), top.probabilityPercentage(), evidence, differentials);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    private double computeThyroidPosterior(Set<String> observed) {
-        boolean hasTachy   = observed.contains(Symptom.TACHYKARDIA);
-        boolean hasFatigue = observed.contains(Symptom.FATIGUE);
-
-        // Keine Evidenz → unverändert den Prior zurückgeben
-        if (!hasTachy && !hasFatigue) {
-            return PRIOR_THYROID;
+    /**
+     * Naïve-Bayes-Posteriori für eine einzelne Erkrankung.
+     *
+     * <p>Nur Symptome, die sowohl beobachtet als auch in der CPT der Erkrankung
+     * vorhanden sind, fließen in die Likelihood ein.  Unbekannte Symptome werden
+     * ignoriert (offene-Welt-Annahme).
+     */
+    private double computePosterior(DiseaseCptData disease, Set<String> observed) {
+        if (observed.isEmpty()) {
+            return disease.prior();
         }
 
-        // Likelihood-Paar (lD, lND) aus CPT wählen.
-        // Nur beobachtete Symptome fließen ein — das Fehlen eines Symptoms
-        // liefert hier keine Gegenevidence (klinisch: Patient hat evtl. nur
-        // einen Teil der Symptome gemeldet).
-        double lD, lND;
-        if (hasTachy && hasFatigue) {
-            // Joint-CPT: Korrelation der Ko-Okkurrenz berücksichtigt
-            lD  = P_BOTH_GIVEN_THYROID;
-            lND = P_BOTH_GIVEN_NO_THYROID;
-        } else if (hasTachy) {
-            lD  = P_TACHYKARDIA_GIVEN_THYROID;
-            lND = P_TACHYKARDIA_GIVEN_NO_THYROID;
-        } else {
-            lD  = P_FATIGUE_GIVEN_THYROID;
-            lND = P_FATIGUE_GIVEN_NO_THYROID;
+        double prior = disease.prior();
+        double lD  = 1.0;
+        double lND = 1.0;
+
+        for (DiseaseCptData.SymptomLikelihood sl : disease.symptomLikelihoods()) {
+            if (observed.contains(sl.symptomName())) {
+                lD  *= sl.pGivenDisease();
+                lND *= sl.pGivenNoDisease();
+            }
         }
 
-        double pD          = PRIOR_THYROID;
-        double numerator   = pD * lD;
-        double denominator = numerator + (1.0 - pD) * lND;
+        // Keine bekannten Symptome der Erkrankung beobachtet → Prior zurückgeben
+        if (lD == 1.0 && lND == 1.0) {
+            return prior;
+        }
+
+        double numerator   = prior * lD;
+        double denominator = numerator + (1.0 - prior) * lND;
 
         if (denominator == 0.0) {
-            Log.warn("[BayesNet] Denominator = 0 — Fallback auf Prior");
-            return pD;
+            Log.warnf("[BayesNet] Denominator = 0 für '%s' — Fallback auf Prior", disease.diseaseName());
+            return prior;
         }
         return numerator / denominator;
     }

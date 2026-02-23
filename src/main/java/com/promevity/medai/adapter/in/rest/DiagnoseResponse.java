@@ -1,6 +1,7 @@
 package com.promevity.medai.adapter.in.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.promevity.medai.domain.model.DifferentialDiagnosis;
 
 import java.util.List;
 
@@ -26,6 +27,9 @@ public record DiagnoseResponse(
         @JsonProperty("probabilityPercentage")
         double probabilityPercentage,
 
+        @JsonProperty("differentialDiagnoses")
+        List<DifferentialDiagnosis> differentialDiagnoses,
+
         @JsonProperty("explanation")
         String explanation
 
@@ -37,6 +41,7 @@ public record DiagnoseResponse(
                 result.allSymptoms(),
                 result.diseaseName(),
                 result.probabilityPercentage(),
+                result.differentialDiagnoses(),
                 result.explanation()
         );
     }

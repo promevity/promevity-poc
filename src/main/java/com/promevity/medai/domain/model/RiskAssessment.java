@@ -16,19 +16,26 @@ import java.util.List;
  *
  * <p>Keine Framework-Annotationen — Serialisierung ist Sache des Adapters.
  *
- * @param diseaseName           Name der Erkrankung mit höchster posteriorer Wahrscheinlichkeit.
- * @param probabilityPercentage Wahrscheinlichkeit in Prozent (0–100), 1 Dezimalstelle.
- * @param evidenceSymptoms      Symptom-Namen, die als Evidenz in das Netz eingeflossen sind.
+ * @param diseaseName             Name der Erkrankung mit höchster posteriorer Wahrscheinlichkeit.
+ * @param probabilityPercentage   Wahrscheinlichkeit in Prozent (0–100), 1 Dezimalstelle.
+ * @param evidenceSymptoms        Symptom-Namen, die als Evidenz in das Netz eingeflossen sind.
+ * @param differentialDiagnoses   Alle Erkrankungen absteigend nach Wahrscheinlichkeit sortiert.
  */
 public record RiskAssessment(
         String diseaseName,
         double probabilityPercentage,
-        List<String> evidenceSymptoms
+        List<String> evidenceSymptoms,
+        List<DifferentialDiagnosis> differentialDiagnoses
 ) {
     public static RiskAssessment of(
             String diseaseName,
             double probabilityPercentage,
-            List<String> evidenceSymptoms) {
-        return new RiskAssessment(diseaseName, probabilityPercentage, List.copyOf(evidenceSymptoms));
+            List<String> evidenceSymptoms,
+            List<DifferentialDiagnosis> differentialDiagnoses) {
+        return new RiskAssessment(
+                diseaseName,
+                probabilityPercentage,
+                List.copyOf(evidenceSymptoms),
+                List.copyOf(differentialDiagnoses));
     }
 }
