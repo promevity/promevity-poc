@@ -37,7 +37,7 @@ public class LlmMedicalExplainer implements MedicalExplainerPort {
     MedicalAssistant medicalAssistant;
 
     @Override
-    public String explain(String patientName, RiskAssessment assessment, String rawText) {
+    public String explain(String patientName, RiskAssessment assessment, String rawText, String vitalSummary) {
         // Domänenobjekt → primitive LLM-Parameter aufbereiten
         String symptomsJoined = String.join(", ", assessment.evidenceSymptoms());
 
@@ -49,7 +49,8 @@ public class LlmMedicalExplainer implements MedicalExplainerPort {
                 symptomsJoined,
                 assessment.diseaseName(),
                 assessment.probabilityPercentage(),
-                rawText
+                rawText,
+                vitalSummary
         );
 
         Log.debugf("[LLM] Antwort erhalten (%d Zeichen)", result.length());

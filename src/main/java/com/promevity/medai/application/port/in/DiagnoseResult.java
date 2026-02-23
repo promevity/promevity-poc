@@ -19,6 +19,7 @@ import java.util.List;
  * @param probabilityPercentage Wahrscheinlichkeit in Prozent
  * @param differentialDiagnoses alle Erkrankungen absteigend nach Wahrscheinlichkeit sortiert
  * @param explanation           patientengerechte LLM-Erklärung
+ * @param vitalSummary          Zusammenfassung der Garmin-Vitaldaten (leer wenn keine vorhanden)
  */
 public record DiagnoseResult(
         String patientId,
@@ -26,5 +27,6 @@ public record DiagnoseResult(
         String diseaseName,
         double probabilityPercentage,
         List<DifferentialDiagnosis> differentialDiagnoses,
-        String explanation
+        String explanation,
+        String vitalSummary
 ) {}

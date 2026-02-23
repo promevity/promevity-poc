@@ -23,7 +23,8 @@ public interface MedicalExplainerPort {
      * @param patientName    Vorname des Patienten (für Personalisierung)
      * @param assessment     Ergebnis des Bayesianischen Netzes
      * @param rawText        ursprünglicher Text des Patienten (Kontext für LLM)
+     * @param vitalSummary   kompakte Zusammenfassung der Garmin-Vitaldaten
      * @return Freitext-Erklärung (≤ 200 Wörter)
      */
-    String explain(String patientName, RiskAssessment assessment, String rawText);
+    String explain(String patientName, RiskAssessment assessment, String rawText, String vitalSummary);
 }

@@ -46,11 +46,14 @@ interface MedicalAssistant {
             - Benutze keinen medizinischen Fachbegriff ohne Erklärung in Klammern.
             """)
     @UserMessage("""
-            Patientenname:      {{patientName}}
-            Erkannte Symptome:  {{symptoms}}
-            Risikobewertung:    {{diseaseName}} — {{probabilityPct}} % Wahrscheinlichkeit
+            Patientenname:       {{patientName}}
+            Erkannte Symptome:   {{symptoms}}
+            Risikobewertung:     {{diseaseName}} — {{probabilityPct}} % Wahrscheinlichkeit
+            Wearable-Vitaldaten: {{vitalSummary}}
             Eigene Beschreibung: "{{rawText}}"
 
+            Falls Wearable-Vitaldaten vorhanden sind, erwähne einen auffälligen Wert kurz
+            im zweiten Absatz als objektiven Messbefund (z. B. erhöhte Herzrate laut Uhr).
             Bitte erstelle jetzt die patientengerechte Gesundheitszusammenfassung.
             """)
     String explain(
@@ -58,6 +61,7 @@ interface MedicalAssistant {
             String symptoms,
             String diseaseName,
             double probabilityPct,
-            String rawText
+            String rawText,
+            String vitalSummary
     );
 }

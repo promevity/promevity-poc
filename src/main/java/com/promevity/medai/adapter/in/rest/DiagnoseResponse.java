@@ -31,7 +31,10 @@ public record DiagnoseResponse(
         List<DifferentialDiagnosis> differentialDiagnoses,
 
         @JsonProperty("explanation")
-        String explanation
+        String explanation,
+
+        @JsonProperty("vitalSummary")
+        String vitalSummary
 
 ) {
     /** Mappt ein {@code DiagnoseResult} (Applikationsschicht) auf dieses DTO. */
@@ -42,7 +45,8 @@ public record DiagnoseResponse(
                 result.diseaseName(),
                 result.probabilityPercentage(),
                 result.differentialDiagnoses(),
-                result.explanation()
+                result.explanation(),
+                result.vitalSummary()
         );
     }
 }

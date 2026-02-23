@@ -197,7 +197,97 @@ MERGE (charlie)-[:EXPERIENCES {date: '2025-03-01'}]->(c);
 MATCH (charlie:Patient {id: 'patient-003'}), (b:Symptom {id: 'symptom-breathlessness'})
 MERGE (charlie)-[:EXPERIENCES {date: '2025-03-02'}]->(b);
 
-// ── 7. Verification queries (comment out when running as an init script) ─
+// ── 7. Garmin Wearable — VitalMeasurement nodes + HAS_MEASUREMENT edges ──
+//    (:Patient)-[:HAS_MEASUREMENT]->(:VitalMeasurement {
+//        id, type, value, unit, recordedAt, source
+//    })
+//    Timestamps: 2026-02-22 (letzte 365 Tage ab Demo-Datum 2026-02-23)
+//    Kalibriert für die Schwellenwerte des VitalSignInterpreter:
+//      HR > 100 bpm → Tachykardia | HRV < 30 ms → Tachykardia
+//      SpO₂ < 94 % → Breathlessness | Stress > 70 → Anxiety | Schlaf < 6 h → Fatigue
+
+// — Alice — Hyperthyreose-Muster: hohe HR + niedriger HRV + kurzer Schlaf
+MERGE (v1:VitalMeasurement {id: 'vital-alice-hr-01'})
+ON CREATE SET v1.type = 'HEART_RATE', v1.value = 108.0, v1.unit = 'bpm',
+              v1.recordedAt = '2026-02-22T07:30:00', v1.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-001'}), (v:VitalMeasurement {id: 'vital-alice-hr-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v2:VitalMeasurement {id: 'vital-alice-hrv-01'})
+ON CREATE SET v2.type = 'HRV', v2.value = 24.0, v2.unit = 'ms',
+              v2.recordedAt = '2026-02-22T07:30:00', v2.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-001'}), (v:VitalMeasurement {id: 'vital-alice-hrv-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v3:VitalMeasurement {id: 'vital-alice-sleep-01'})
+ON CREATE SET v3.type = 'SLEEP_DURATION_HOURS', v3.value = 5.2, v3.unit = 'h',
+              v3.recordedAt = '2026-02-22T06:00:00', v3.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-001'}), (v:VitalMeasurement {id: 'vital-alice-sleep-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v4:VitalMeasurement {id: 'vital-alice-spo2-01'})
+ON CREATE SET v4.type = 'SPO2', v4.value = 98.1, v4.unit = '%',
+              v4.recordedAt = '2026-02-22T07:31:00', v4.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-001'}), (v:VitalMeasurement {id: 'vital-alice-spo2-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v5:VitalMeasurement {id: 'vital-alice-stress-01'})
+ON CREATE SET v5.type = 'STRESS_LEVEL', v5.value = 65.0, v5.unit = 'score',
+              v5.recordedAt = '2026-02-22T12:00:00', v5.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-001'}), (v:VitalMeasurement {id: 'vital-alice-stress-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+// — Bob — Anämie-Muster: niedrige SpO₂, normale HR, wenig Schritte
+MERGE (v6:VitalMeasurement {id: 'vital-bob-spo2-01'})
+ON CREATE SET v6.type = 'SPO2', v6.value = 91.5, v6.unit = '%',
+              v6.recordedAt = '2026-02-22T08:00:00', v6.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-002'}), (v:VitalMeasurement {id: 'vital-bob-spo2-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v7:VitalMeasurement {id: 'vital-bob-hr-01'})
+ON CREATE SET v7.type = 'HEART_RATE', v7.value = 88.0, v7.unit = 'bpm',
+              v7.recordedAt = '2026-02-22T08:00:00', v7.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-002'}), (v:VitalMeasurement {id: 'vital-bob-hr-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v8:VitalMeasurement {id: 'vital-bob-steps-01'})
+ON CREATE SET v8.type = 'STEPS_PER_DAY', v8.value = 2800.0, v8.unit = 'steps',
+              v8.recordedAt = '2026-02-22T23:59:00', v8.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-002'}), (v:VitalMeasurement {id: 'vital-bob-steps-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v9:VitalMeasurement {id: 'vital-bob-sleep-01'})
+ON CREATE SET v9.type = 'SLEEP_DURATION_HOURS', v9.value = 8.3, v9.unit = 'h',
+              v9.recordedAt = '2026-02-22T06:30:00', v9.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-002'}), (v:VitalMeasurement {id: 'vital-bob-sleep-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+// — Charlie — Herzrhythmusstörungs-Muster: sehr hohe HR + sehr niedriger HRV + hoher Stress
+MERGE (v10:VitalMeasurement {id: 'vital-charlie-hr-01'})
+ON CREATE SET v10.type = 'HEART_RATE', v10.value = 121.0, v10.unit = 'bpm',
+              v10.recordedAt = '2026-02-22T09:15:00', v10.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-003'}), (v:VitalMeasurement {id: 'vital-charlie-hr-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v11:VitalMeasurement {id: 'vital-charlie-hrv-01'})
+ON CREATE SET v11.type = 'HRV', v11.value = 16.0, v11.unit = 'ms',
+              v11.recordedAt = '2026-02-22T09:15:00', v11.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-003'}), (v:VitalMeasurement {id: 'vital-charlie-hrv-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v12:VitalMeasurement {id: 'vital-charlie-stress-01'})
+ON CREATE SET v12.type = 'STRESS_LEVEL', v12.value = 78.0, v12.unit = 'score',
+              v12.recordedAt = '2026-02-22T12:00:00', v12.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-003'}), (v:VitalMeasurement {id: 'vital-charlie-stress-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+MERGE (v13:VitalMeasurement {id: 'vital-charlie-spo2-01'})
+ON CREATE SET v13.type = 'SPO2', v13.value = 95.8, v13.unit = '%',
+              v13.recordedAt = '2026-02-22T09:16:00', v13.source = 'Garmin';
+MATCH (p:Patient {id: 'patient-003'}), (v:VitalMeasurement {id: 'vital-charlie-spo2-01'})
+MERGE (p)-[:HAS_MEASUREMENT]->(v);
+
+// ── 8. Verification queries (comment out when running as an init script) ─
 // MATCH (d:Disease)-[r:HAS_SYMPTOM_LIKELIHOOD]->(s:Symptom)
 // RETURN d.name AS disease, s.name AS symptom,
 //        r.p_given_disease AS pD, r.p_given_no_disease AS pND
