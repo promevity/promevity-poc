@@ -1,6 +1,8 @@
 package com.promevity.medai.application.port.in;
 
 import com.promevity.medai.domain.model.DifferentialDiagnosis;
+import com.promevity.medai.domain.model.SymptomSource;
+import com.promevity.medai.domain.model.VitalReading;
 
 import java.util.List;
 
@@ -20,6 +22,8 @@ import java.util.List;
  * @param differentialDiagnoses alle Erkrankungen absteigend nach Wahrscheinlichkeit sortiert
  * @param explanation           patientengerechte LLM-Erklärung
  * @param vitalSummary          Zusammenfassung der Garmin-Vitaldaten (leer wenn keine vorhanden)
+ * @param symptomSources        Herkunft jedes Symptoms (TEXT / GARMIN / VERLAUF)
+ * @param vitals                strukturierte Vitaldaten für das Frontend-Dashboard
  */
 public record DiagnoseResult(
         String patientId,
@@ -28,5 +32,7 @@ public record DiagnoseResult(
         double probabilityPercentage,
         List<DifferentialDiagnosis> differentialDiagnoses,
         String explanation,
-        String vitalSummary
+        String vitalSummary,
+        List<SymptomSource> symptomSources,
+        List<VitalReading> vitals
 ) {}

@@ -10,7 +10,9 @@ import com.promevity.medai.application.port.out.WearableRepositoryPort;
 import com.promevity.medai.domain.model.Patient;
 import com.promevity.medai.domain.model.RiskAssessment;
 import com.promevity.medai.domain.model.Symptom;
+import com.promevity.medai.domain.model.SymptomSource;
 import com.promevity.medai.domain.model.VitalMeasurement;
+import com.promevity.medai.domain.model.VitalReading;
 import com.promevity.medai.domain.service.BayesianRiskService;
 import com.promevity.medai.domain.service.VitalSignInterpreter;
 import io.quarkus.logging.Log;
@@ -23,6 +25,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Application Service — Implementiert die primären Use-Case-Ports.
@@ -114,6 +118,24 @@ public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCas
         String explanation  = medicalExplainer.explain(patient.name(), assessment, rawText, vitalSummary);
         Log.infof("[8/8] LLM-Erklärung erzeugt (%d Zeichen)", explanation.length());
 
+        // Symptom-Quellen berechnen: TEXT / GARMIN / TEXT+GARMIN / VERLAUF
+        Set<String> nlpNames   = nlpSymptoms.stream().map(Symptom::name).collect(Collectors.toSet());
+        Set<String> vitalNames = vitalSymptoms.stream().map(Symptom::name).collect(Collectors.toSet());
+        List<SymptomSource> symptomSources = allSymptoms.stream()
+                .map(s -> {
+                    boolean fromNlp   = nlpNames.contains(s.name());
+                    boolean fromVital = vitalNames.contains(s.name());
+                    String src = (fromNlp && fromVital) ? "TEXT+GARMIN"
+                               : fromVital              ? "GARMIN"
+                               : fromNlp                ? "TEXT"
+                               :                          "VERLAUF";
+                    return new SymptomSource(s.name(), src);
+                })
+                .toList();
+
+        // Strukturierte Vitaldaten für Frontend-Dashboard
+        List<VitalReading> vitalReadings = vitalSignInterpreter.summariseStructured(vitals);
+
         List<String> symptomNames = allSymptoms.stream().map(Symptom::name).toList();
 
         Log.infof("=== Use Case: diagnose END [patient=%s] ===", patientId);
@@ -124,7 +146,9 @@ public class DiagnosticService implements DiagnoseUseCase, RegisterPatientUseCas
                 assessment.probabilityPercentage(),
                 assessment.differentialDiagnoses(),
                 explanation,
-                vitalSummary
+                vitalSummary,
+                symptomSources,
+                vitalReadings
         );
     }
 

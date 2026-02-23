@@ -2,6 +2,8 @@ package com.promevity.medai.adapter.in.rest;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.promevity.medai.domain.model.DifferentialDiagnosis;
+import com.promevity.medai.domain.model.SymptomSource;
+import com.promevity.medai.domain.model.VitalReading;
 
 import java.util.List;
 
@@ -34,7 +36,13 @@ public record DiagnoseResponse(
         String explanation,
 
         @JsonProperty("vitalSummary")
-        String vitalSummary
+        String vitalSummary,
+
+        @JsonProperty("symptomSources")
+        List<SymptomSource> symptomSources,
+
+        @JsonProperty("vitals")
+        List<VitalReading> vitals
 
 ) {
     /** Mappt ein {@code DiagnoseResult} (Applikationsschicht) auf dieses DTO. */
@@ -46,7 +54,9 @@ public record DiagnoseResponse(
                 result.probabilityPercentage(),
                 result.differentialDiagnoses(),
                 result.explanation(),
-                result.vitalSummary()
+                result.vitalSummary(),
+                result.symptomSources(),
+                result.vitals()
         );
     }
 }

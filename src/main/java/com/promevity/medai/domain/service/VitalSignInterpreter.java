@@ -2,10 +2,12 @@ package com.promevity.medai.domain.service;
 
 import com.promevity.medai.domain.model.Symptom;
 import com.promevity.medai.domain.model.VitalMeasurement;
+import com.promevity.medai.domain.model.VitalReading;
 import com.promevity.medai.domain.model.VitalType;
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -125,6 +127,47 @@ public class VitalSignInterpreter {
         StringJoiner sj = new StringJoiner(", ", "Garmin-Vitaldaten (letzte 24 h): ", "");
         averages.forEach((type, avg) -> sj.add(formatVital(type, avg)));
         return sj.toString();
+    }
+
+    /**
+     * Gibt eine strukturierte Liste von Vitaldaten-Ablesungen zurück, die das
+     * Frontend für Farb-Codierung und Dashboard-Karten verwenden kann.
+     *
+     * @param measurements Rohdaten aus dem Wearable-Repository
+     * @return Liste von {@link VitalReading}-Objekten (leer wenn keine Daten)
+     */
+    public List<VitalReading> summariseStructured(List<VitalMeasurement> measurements) {
+        if (measurements.isEmpty()) {
+            return List.of();
+        }
+
+        Map<VitalType, Double> averages = averageByType(measurements);
+        List<VitalReading> readings = new ArrayList<>();
+
+        averages.forEach((type, avg) -> {
+            switch (type) {
+                case HEART_RATE ->
+                        readings.add(new VitalReading("HEART_RATE", "Herzrate",
+                                Math.round(avg), "bpm", avg > HR_TACHYKARDIA_THRESHOLD));
+                case HRV ->
+                        readings.add(new VitalReading("HRV", "HRV",
+                                Math.round(avg), "ms", avg < HRV_LOW_THRESHOLD));
+                case SPO2 ->
+                        readings.add(new VitalReading("SPO2", "SpO₂",
+                                Math.round(avg * 10.0) / 10.0, "%", avg < SPO2_BREATHLESSNESS_THRESHOLD));
+                case STRESS_LEVEL ->
+                        readings.add(new VitalReading("STRESS_LEVEL", "Stress",
+                                Math.round(avg), "/100", avg > STRESS_ANXIETY_THRESHOLD));
+                case SLEEP_DURATION_HOURS ->
+                        readings.add(new VitalReading("SLEEP_DURATION_HOURS", "Schlaf",
+                                Math.round(avg * 10.0) / 10.0, "h", avg < SLEEP_FATIGUE_THRESHOLD));
+                case STEPS_PER_DAY ->
+                        readings.add(new VitalReading("STEPS_PER_DAY", "Schritte",
+                                Math.round(avg), "/Tag", false));
+            }
+        });
+
+        return readings;
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

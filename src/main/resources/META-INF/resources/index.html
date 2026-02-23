@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Promevity — Personalized Medicine AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #0f4c81;
+      --garmin:    #00b4c8;
+      --garmin-dk: #007a8a;
+      --success:   #22c55e;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --bg:        #f0f4f8;
+      --card:      #ffffff;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --border:    #e2e8f0;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    header .brand { display: flex; align-items: center; gap: .75rem; }
+    header .brand svg { width: 28px; height: 28px; }
+    header .brand h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; }
+    header .brand span { font-size: .75rem; font-weight: 300; opacity: .7; margin-left: .25rem; }
+    header .garmin-badge {
+      background: var(--garmin); color: #fff;
+      font-size: .7rem; font-weight: 600; letter-spacing: .08em;
+      padding: .25rem .7rem; border-radius: 999px; text-transform: uppercase;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: .9rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .card-body { padding: 1.25rem; }
+
+    /* ── Input panel ─────────────────────────────────────────────────── */
+    .input-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+    label { font-size: .8rem; font-weight: 500; color: var(--muted); display: block; margin-bottom: .4rem; }
+
+    select, textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: .6rem .8rem;
+      font-family: inherit;
+      font-size: .875rem;
+      color: var(--text);
+      background: #fafafa;
+      transition: border-color .15s;
+      outline: none;
+    }
+    select:focus, textarea:focus { border-color: var(--primary); background: #fff; }
+    textarea { resize: vertical; min-height: 100px; }
+
+    /* ── Garmin presets ──────────────────────────────────────────────── */
+    .garmin-section {
+      background: linear-gradient(135deg, #e0f7fa 0%, #e8f4f8 100%);
+      border: 1.5px solid #b2ebf2;
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .garmin-section .garmin-title {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .8rem; font-weight: 600; color: var(--garmin-dk);
+      margin-bottom: .75rem;
+    }
+    .garmin-title .watch-icon { font-size: 1.2rem; }
+    .preset-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .preset-btn {
+      flex: 1; min-width: 120px;
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      padding: .55rem .75rem;
+      font-family: inherit;
+      font-size: .8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .preset-btn.normal  { background:#e8f5e9; color:#2e7d32; border-color:#a5d6a7; }
+    .preset-btn.normal:hover  { background:#c8e6c9; }
+    .preset-btn.normal.active { background:#2e7d32; color:#fff; border-color:#2e7d32; }
+    .preset-btn.critical { background:#fce4ec; color:#b71c1c; border-color:#ef9a9a; }
+    .preset-btn.critical:hover { background:#f8bbd0; }
+    .preset-btn.critical.active { background:#c62828; color:#fff; border-color:#c62828; }
+    .preset-btn.none { background:#f5f5f5; color:#616161; border-color:#e0e0e0; }
+    .preset-btn.none:hover { background:#eeeeee; }
+    .preset-btn.none.active { background:#757575; color:#fff; border-color:#757575; }
+
+    .preset-preview {
+      margin-top: .65rem;
+      font-size: .73rem;
+      color: var(--muted);
+      line-height: 1.6;
+      display: none;
+    }
+    .preset-preview.visible { display: block; }
+    .vital-chip {
+      display: inline-flex; align-items: center; gap: .25rem;
+      background: rgba(0,0,0,.06);
+      border-radius: 4px;
+      padding: .1rem .4rem;
+      margin: .1rem;
+      font-size: .7rem;
+    }
+    .vital-chip.alert { background: #fce4ec; color: #b71c1c; }
+    .vital-chip.ok    { background: #e8f5e9; color: #2e7d32; }
+
+    /* ── Action button ───────────────────────────────────────────────── */
+    .btn-diagnose {
+      width: 100%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: .85rem 1rem;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      transition: background .15s, transform .1s;
+    }
+    .btn-diagnose:hover:not(:disabled) { background: #0c3d6b; }
+    .btn-diagnose:active:not(:disabled) { transform: scale(.98); }
+    .btn-diagnose:disabled { opacity: .5; cursor: default; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { display: block; }
+    .loading .btn-text { display: none; }
+
+    .error-msg {
+      background: #fce4ec; border: 1px solid #f48fb1;
+      border-radius: 8px; padding: .65rem .9rem;
+      font-size: .8rem; color: #b71c1c;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── Results panel ───────────────────────────────────────────────── */
+    .results-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 1rem;
+      padding: 3rem;
+      color: var(--muted); text-align: center;
+    }
+    .empty-state .icon { font-size: 3.5rem; opacity: .35; }
+    .empty-state p { font-size: .875rem; max-width: 280px; line-height: 1.5; }
+
+    /* ── Vitals row ──────────────────────────────────────────────────── */
+    .vitals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .65rem; }
+    .vital-card {
+      background: var(--bg);
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      padding: .7rem .8rem;
+      text-align: center;
+      transition: border-color .2s;
+      position: relative;
+    }
+    .vital-card.alert { border-color: var(--danger); background: #fff5f5; }
+    .vital-card.ok    { border-color: #bbf7d0; background: #f0fdf4; }
+    .vital-card .vital-icon { font-size: 1.3rem; margin-bottom: .25rem; }
+    .vital-card .vital-val {
+      font-size: 1.35rem; font-weight: 700; line-height: 1;
+    }
+    .vital-card.alert .vital-val { color: var(--danger); }
+    .vital-card.ok    .vital-val { color: #16a34a; }
+    .vital-card .vital-unit { font-size: .65rem; color: var(--muted); margin-left: .15rem; }
+    .vital-card .vital-lbl { font-size: .7rem; color: var(--muted); margin-top: .3rem; }
+    .vital-card .alert-badge {
+      position: absolute; top: .35rem; right: .35rem;
+      font-size: .65rem; font-weight: 700;
+      background: var(--danger); color: #fff;
+      border-radius: 999px; padding: .05rem .35rem;
+    }
+    .no-vitals {
+      color: var(--muted); font-size: .825rem; font-style: italic;
+      text-align: center; padding: .75rem;
+    }
+
+    /* ── Gauge ───────────────────────────────────────────────────────── */
+    .gauge-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.5rem 1rem 1rem;
+    }
+    .gauge-container { position: relative; width: 180px; height: 100px; }
+    .gauge-container svg { overflow: visible; }
+    .gauge-center {
+      position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+      text-align: center;
+    }
+    .gauge-pct { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .gauge-label { font-size: .65rem; color: var(--muted); margin-top: .1rem; }
+    .disease-name {
+      margin-top: 1rem; font-size: 1rem; font-weight: 700;
+      text-align: center; color: var(--text);
+    }
+    .disease-sub { font-size: .75rem; color: var(--muted); text-align: center; margin-top: .2rem; }
+
+    /* ── Differential bars ───────────────────────────────────────────── */
+    .diff-list { display: flex; flex-direction: column; gap: .6rem; }
+    .diff-item { }
+    .diff-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: .25rem;
+    }
+    .diff-name { font-size: .82rem; font-weight: 500; }
+    .diff-pct  { font-size: .82rem; font-weight: 700; color: var(--primary); }
+    .diff-bar-bg {
+      height: 8px; background: var(--border); border-radius: 999px; overflow: hidden;
+    }
+    .diff-bar-fill {
+      height: 100%; border-radius: 999px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ── Symptoms ────────────────────────────────────────────────────── */
+    .symptom-list { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .symptom-pill {
+      display: inline-flex; align-items: center; gap: .35rem;
+      border-radius: 999px; padding: .35rem .75rem;
+      font-size: .78rem; font-weight: 500;
+    }
+    .pill-text    { background:#dbeafe; color:#1e40af; }
+    .pill-garmin  { background:#cffafe; color:#0e7490; }
+    .pill-both    { background: linear-gradient(90deg,#dbeafe,#cffafe); color:#0e5e7a; }
+    .pill-verlauf { background:#f1f5f9; color:#475569; }
+    .source-tag {
+      font-size: .65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; opacity: .75;
+    }
+
+    /* ── Explanation ─────────────────────────────────────────────────── */
+    .explanation-text {
+      font-size: .875rem; line-height: 1.7; color: var(--text);
+    }
+
+    /* ── Two-column for gauge + differentials ────────────────────────── */
+    .results-top {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 700px) {
+      .results-top { grid-template-columns: 1fr; }
+    }
+
+    .divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: .25rem 0;
+    }
+
+    /* ── Animate in ──────────────────────────────────────────────────── */
+    .fade-in {
+      animation: fadeIn .4s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" stroke="white" stroke-width="2"/>
+      <path d="M8 16 Q10 9 13 16 Q16 23 19 16 Q22 9 24 16" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <h1>Promevity <span>Personalized Medicine AI</span></h1>
+  </div>
+  <div class="garmin-badge">⌚ Garmin Connected</div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Left: Input panel ───────────────────────────────────────────── -->
+  <div class="input-panel">
+
+    <!-- Patient selector -->
+    <div class="card">
+      <div class="card-header">👤 Patient</div>
+      <div class="card-body">
+        <label for="patientSelect">Patient auswählen</label>
+        <select id="patientSelect">
+          <option value="patient-001">Alice Meier — 34 J. (Thyroid-Verlauf)</option>
+          <option value="patient-002">Bob Schneider — 52 J. (Anämie-Verdacht)</option>
+          <option value="patient-003">Charlie Braun — 29 J. (Kardiales Risiko)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Garmin presets -->
+    <div class="card">
+      <div class="card-header">⌚ Garmin Wearable-Daten</div>
+      <div class="card-body">
+        <div class="garmin-section">
+          <div class="garmin-title">
+            <span class="watch-icon">⌚</span>
+            Vitaldaten vor Diagnose einspielen
+          </div>
+          <div class="preset-btns">
+            <button class="preset-btn none active" data-preset="none" onclick="selectPreset('none')">
+              — Keine
+            </button>
+            <button class="preset-btn normal" data-preset="normal" onclick="selectPreset('normal')">
+              ✓ Normal
+            </button>
+            <button class="preset-btn critical" data-preset="critical" onclick="selectPreset('critical')">
+              ⚠ Kritisch
+            </button>
+          </div>
+          <div class="preset-preview" id="presetPreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Symptom text -->
+    <div class="card">
+      <div class="card-header">💬 Patientenbeschreibung</div>
+      <div class="card-body">
+        <label for="symptomText">Symptome in eigenen Worten</label>
+        <textarea id="symptomText" placeholder="z. B. Ich fühle mich sehr müde und schwitze viel…"></textarea>
+        <div style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+          <button onclick="fillText('tired')" style="font-size:.72rem;padding:.25rem .6rem;border:1px solid var(--border);border-radius:6px;background:#f8fafc;cursor:pointer;">
+            „Ich bin sehr müde"
+          </button>
+          <button onclick="fillText('heat')" style="font-size:.72rem;padding:.25rem .6rem;border:1px solid var(--border);border-radius:6px;background:#f8fafc;cursor:pointer;">
+            „Hitze + Angst"
+          </button>
+          <button onclick="fillText('pale')" style="font-size:.72rem;padding:.25rem .6rem;border:1px solid var(--border);border-radius:6px;background:#f8fafc;cursor:pointer;">
+            „Blass + erschöpft"
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action -->
+    <div style="display:flex;flex-direction:column;gap:.5rem;">
+      <button class="btn-diagnose" id="diagnoseBtn" onclick="runDiagnosis()">
+        <span class="btn-text">🔬 Diagnose stellen</span>
+        <div class="spinner"></div>
+      </button>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Right: Results panel ─────────────────────────────────────────── -->
+  <div class="results-panel" id="resultsPanel">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="icon">🩺</div>
+      <p>Patient auswählen, optional Garmin-Daten einspielen und Diagnose starten.</p>
+    </div>
+
+    <!-- Results (hidden initially) -->
+    <div id="results" style="display:none; flex-direction:column; gap:1rem;">
+
+      <!-- Vitals -->
+      <div class="card fade-in" id="vitalsCard">
+        <div class="card-header">⌚ Garmin Vitaldaten — Letzte 24 h</div>
+        <div class="card-body" id="vitalsBody"></div>
+      </div>
+
+      <!-- Gauge + Differentials -->
+      <div class="results-top">
+        <div class="card fade-in">
+          <div class="card-header">🎯 Hauptdiagnose</div>
+          <div class="gauge-wrap">
+            <div class="gauge-container">
+              <svg width="180" height="100" viewBox="0 0 180 100">
+                <!-- Background arc -->
+                <path id="gaugeTrack" d="" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round"/>
+                <!-- Value arc -->
+                <path id="gaugeFill"  d="" fill="none" stroke="#22c55e" stroke-width="14" stroke-linecap="round"
+                      stroke-dasharray="0 1000" style="transition: stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1), stroke .4s;"/>
+              </svg>
+              <div class="gauge-center">
+                <div class="gauge-pct" id="gaugePct">–</div>
+                <div class="gauge-label">Wahrsch.</div>
+              </div>
+            </div>
+            <div class="disease-name" id="diseaseName">–</div>
+            <div class="disease-sub" id="diseaseSub"></div>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <div class="card-header">📊 Differentialdiagnose</div>
+          <div class="card-body">
+            <div class="diff-list" id="diffList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Symptoms -->
+      <div class="card fade-in">
+        <div class="card-header">🔎 Erkannte Symptome</div>
+        <div class="card-body">
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem;font-size:.72rem;color:var(--muted);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dbeafe;"></span> Text-NLP</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#cffafe;"></span> Garmin-Wearable</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,#dbeafe,#cffafe);"></span> Text + Garmin</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f1f5f9;"></span> Vorgeschichte</span>
+          </div>
+          <div class="symptom-list" id="symptomList"></div>
+        </div>
+      </div>
+
+      <!-- Explanation -->
+      <div class="card fade-in">
+        <div class="card-header">💡 KI-Erklärung</div>
+        <div class="card-body">
+          <p class="explanation-text" id="explanationText"></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let activePreset = 'none';
+
+const PRESETS = {
+  none: { label: 'Keine Garmin-Daten', measurements: [] },
+  normal: {
+    label: 'Normale Vitaldaten',
+    chips: [
+      { label: 'HR 82 bpm', ok: true },
+      { label: 'HRV 48 ms', ok: true },
+      { label: 'SpO₂ 97.5%', ok: true },
+      { label: 'Stress 42', ok: true },
+      { label: 'Schlaf 7.5 h', ok: true },
+    ],
+    measurements: [
+      { type: 'HEART_RATE',          value: 82.0,  recordedAt: todayTs('07:30') },
+      { type: 'HRV',                 value: 48.0,  recordedAt: todayTs('07:30') },
+      { type: 'SPO2',                value: 97.5,  recordedAt: todayTs('07:30') },
+      { type: 'STRESS_LEVEL',        value: 42.0,  recordedAt: todayTs('07:30') },
+      { type: 'SLEEP_DURATION_HOURS',value: 7.5,   recordedAt: todayTs('06:00') },
+    ]
+  },
+  critical: {
+    label: 'Kritische Vitaldaten',
+    chips: [
+      { label: 'HR 112 bpm ↑', ok: false },
+      { label: 'HRV 19 ms ↓',  ok: false },
+      { label: 'SpO₂ 91.5% ↓', ok: false },
+      { label: 'Stress 78 ↑',  ok: false },
+      { label: 'Schlaf 4.8 h ↓', ok: false },
+    ],
+    measurements: [
+      { type: 'HEART_RATE',          value: 112.0, recordedAt: todayTs('07:30') },
+      { type: 'HRV',                 value: 19.0,  recordedAt: todayTs('07:30') },
+      { type: 'SPO2',                value: 91.5,  recordedAt: todayTs('07:30') },
+      { type: 'STRESS_LEVEL',        value: 78.0,  recordedAt: todayTs('07:30') },
+      { type: 'SLEEP_DURATION_HOURS',value: 4.8,   recordedAt: todayTs('06:00') },
+    ]
+  }
+};
+
+function todayTs(time) {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${time}:00`;
+}
+
+// ── Preset selection ──────────────────────────────────────────────────────────
+function selectPreset(name) {
+  activePreset = name;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-preset="${name}"]`).classList.add('active');
+
+  const prev = document.getElementById('presetPreview');
+  const p = PRESETS[name];
+  if (!p.chips) { prev.innerHTML = ''; prev.classList.remove('visible'); return; }
+
+  prev.innerHTML = p.chips.map(c =>
+    `<span class="vital-chip ${c.ok ? 'ok' : 'alert'}">${c.label}</span>`
+  ).join('');
+  prev.classList.add('visible');
+}
+
+// ── Text shortcuts ────────────────────────────────────────────────────────────
+function fillText(key) {
+  const map = {
+    tired: 'I feel very tired and exhausted lately.',
+    heat:  'Lately I cannot stand heat anymore and I feel very anxious. That is all I can say.',
+    pale:  'I feel very weak and pale. I am short of breath when climbing stairs.',
+  };
+  document.getElementById('symptomText').value = map[key] || '';
+}
+
+// ── Gauge helpers ─────────────────────────────────────────────────────────────
+function describeArc(cx, cy, r, startDeg, endDeg) {
+  const toRad = d => (d * Math.PI) / 180;
+  const sx = cx + r * Math.cos(toRad(startDeg));
+  const sy = cy + r * Math.sin(toRad(startDeg));
+  const ex = cx + r * Math.cos(toRad(endDeg));
+  const ey = cy + r * Math.sin(toRad(endDeg));
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey}`;
+}
+
+function initGauge() {
+  const arc = describeArc(90, 95, 75, 185, 355);
+  document.getElementById('gaugeTrack').setAttribute('d', arc);
+  document.getElementById('gaugeFill').setAttribute('d', arc);
+}
+
+function setGauge(pct) {
+  const fill = document.getElementById('gaugeFill');
+  const total = Math.PI * 75 * (170 / 180); // arc length ≈170°
+  const filled = (pct / 100) * total;
+  fill.style.strokeDasharray = `${filled} ${total}`;
+
+  const color = pct < 35 ? '#22c55e' : pct < 65 ? '#f59e0b' : '#ef4444';
+  fill.style.stroke = color;
+  document.getElementById('gaugePct').style.color = color;
+  document.getElementById('gaugePct').textContent = pct.toFixed(1) + '%';
+}
+
+// ── Differential bars ─────────────────────────────────────────────────────────
+const DIFF_COLORS = ['#0f4c81','#00b4c8','#8b5cf6','#f59e0b','#ef4444'];
+
+function renderDifferentials(diffs) {
+  const list = document.getElementById('diffList');
+  list.innerHTML = '';
+  const top3 = diffs.slice(0, 4);
+  const max = top3[0]?.probabilityPercentage || 100;
+
+  top3.forEach((d, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'diff-item';
+    bar.innerHTML = `
+      <div class="diff-meta">
+        <span class="diff-name">${d.diseaseName}</span>
+        <span class="diff-pct">${d.probabilityPercentage.toFixed(1)} %</span>
+      </div>
+      <div class="diff-bar-bg">
+        <div class="diff-bar-fill" style="width:0%;background:${DIFF_COLORS[i]}" data-target="${(d.probabilityPercentage/max*100).toFixed(1)}"></div>
+      </div>`;
+    list.appendChild(bar);
+  });
+
+  // Animate bars after render
+  setTimeout(() => {
+    list.querySelectorAll('.diff-bar-fill').forEach(el => {
+      el.style.width = el.dataset.target + '%';
+    });
+  }, 100);
+}
+
+// ── Symptom pills ─────────────────────────────────────────────────────────────
+const SOURCE_ICONS = { TEXT: '💬', GARMIN: '⌚', 'TEXT+GARMIN': '⌚💬', VERLAUF: '📋' };
+const SOURCE_CLASSES = { TEXT: 'pill-text', GARMIN: 'pill-garmin', 'TEXT+GARMIN': 'pill-both', VERLAUF: 'pill-verlauf' };
+
+function renderSymptoms(sources) {
+  const list = document.getElementById('symptomList');
+  list.innerHTML = '';
+  sources.forEach(s => {
+    const pill = document.createElement('span');
+    pill.className = `symptom-pill ${SOURCE_CLASSES[s.source] || 'pill-verlauf'}`;
+    pill.innerHTML = `
+      <span>${s.symptomName}</span>
+      <span class="source-tag">${SOURCE_ICONS[s.source] || ''} ${s.source}</span>`;
+    list.appendChild(pill);
+  });
+}
+
+// ── Vital cards ───────────────────────────────────────────────────────────────
+const VITAL_ICONS = {
+  HEART_RATE: '❤️', HRV: '💓', SPO2: '🫁',
+  STRESS_LEVEL: '🧠', SLEEP_DURATION_HOURS: '😴', STEPS_PER_DAY: '👟'
+};
+
+function renderVitals(vitals) {
+  const body = document.getElementById('vitalsBody');
+  if (!vitals || vitals.length === 0) {
+    body.innerHTML = '<p class="no-vitals">Keine Wearable-Daten vorhanden.</p>';
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'vitals-grid';
+  vitals.forEach(v => {
+    const card = document.createElement('div');
+    card.className = `vital-card ${v.alert ? 'alert' : 'ok'}`;
+    card.innerHTML = `
+      ${v.alert ? '<span class="alert-badge">!</span>' : ''}
+      <div class="vital-icon">${VITAL_ICONS[v.type] || '📊'}</div>
+      <div class="vital-val">${v.value}<span class="vital-unit">${v.unit}</span></div>
+      <div class="vital-lbl">${v.label}</div>`;
+    grid.appendChild(card);
+  });
+  body.innerHTML = '';
+  body.appendChild(grid);
+}
+
+// ── Main diagnosis flow ───────────────────────────────────────────────────────
+async function runDiagnosis() {
+  const patientId = document.getElementById('patientSelect').value;
+  const rawText   = document.getElementById('symptomText').value.trim();
+  const btn       = document.getElementById('diagnoseBtn');
+  const errMsg    = document.getElementById('errorMsg');
+
+  if (!rawText) {
+    errMsg.textContent = 'Bitte Symptombeschreibung eingeben.';
+    errMsg.classList.add('visible');
+    return;
+  }
+  errMsg.classList.remove('visible');
+
+  // Loading state
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    // Step 1: upload Garmin data if preset selected
+    const preset = PRESETS[activePreset];
+    if (preset.measurements && preset.measurements.length > 0) {
+      const wRes = await fetch(`/api/wearable/${patientId}/measurements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preset.measurements)
+      });
+      if (!wRes.ok) {
+        const t = await wRes.text();
+        throw new Error(`Garmin-Upload fehlgeschlagen (${wRes.status}): ${t}`);
+      }
+    }
+
+    // Step 2: diagnose
+    const dRes = await fetch(`/api/diagnose/${patientId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText })
+    });
+    if (!dRes.ok) {
+      const t = await dRes.text();
+      throw new Error(`Diagnose fehlgeschlagen (${dRes.status}): ${t}`);
+    }
+
+    const data = await dRes.json();
+    displayResults(data);
+
+  } catch (e) {
+    errMsg.textContent = e.message;
+    errMsg.classList.add('visible');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function displayResults(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  const resultsEl = document.getElementById('results');
+  resultsEl.style.display = 'flex';
+
+  // Vitals
+  renderVitals(data.vitals);
+
+  // Gauge
+  setGauge(data.probabilityPercentage);
+  document.getElementById('diseaseName').textContent = data.diseaseName;
+  document.getElementById('diseaseSub').textContent =
+    `${data.detectedSymptoms.length} Symptom(e) analysiert`;
+
+  // Differentials
+  if (data.differentialDiagnoses && data.differentialDiagnoses.length > 0) {
+    renderDifferentials(data.differentialDiagnoses);
+  }
+
+  // Symptoms with sources
+  if (data.symptomSources && data.symptomSources.length > 0) {
+    renderSymptoms(data.symptomSources);
+  } else {
+    // Fallback: plain list without source info
+    const list = document.getElementById('symptomList');
+    list.innerHTML = (data.detectedSymptoms || [])
+      .map(s => `<span class="symptom-pill pill-verlauf">${s}</span>`)
+      .join('');
+  }
+
+  // Explanation
+  document.getElementById('explanationText').textContent = data.explanation || '';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  initGauge();
+  selectPreset('none');
+});
+</script>
+
+</body>
+</html>
