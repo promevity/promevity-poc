@@ -8,6 +8,9 @@ version: "3.9"
 #
 #  Stop & remove volumes:
 #    docker compose -f docker/docker-compose.yml down -v
+#
+#  Modell wechseln (z. B. auf llama3.2):
+#    OLLAMA_MODEL=llama3.2 docker compose -f docker/docker-compose.yml up -d
 # ═══════════════════════════════════════════════════════════════════════════
 
 services:
@@ -40,6 +43,46 @@ services:
       retries: 10
       start_period: 30s
 
+  # ── Ollama — lokales LLM, kein API-Key, keine Rate-Limits ───────────────
+  #
+  #  Standardmodell: phi3.5 (~2.2 GB RAM, 3.8 B Parameter)
+  #  Alternatives Modell via Env-Variable:
+  #    OLLAMA_MODEL=llama3.2 docker compose ... up -d
+  #
+  #  Das ollama-init-Service zieht das Modell beim ersten Start.
+  #  Danach startet Ollama in Sekunden — kein Re-Download nötig (Volume).
+  #
+  ollama:
+    image: ollama/ollama:latest
+    container_name: medai-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # ── Ollama Init — zieht das Modell einmalig beim ersten Start ────────────
+  #  Läuft nur einmal (restart: "no"), blockiert nicht den Stack.
+  #  Fortschritt verfolgen: docker logs medai-ollama-init -f
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: medai-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3.5}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull $$OLLAMA_MODEL && echo '✓ Modell bereit: '$$OLLAMA_MODEL"]
+    restart: "no"
+
   # ── Quarkus Application ──────────────────────────────────────────────────
   #  Uncomment once you have built the fat-jar:
   #    ./mvnw package -DskipTests
@@ -50,11 +93,14 @@ services:
   #   depends_on:
   #     neo4j:
   #       condition: service_healthy
+  #     ollama:
+  #       condition: service_healthy
   #   environment:
-  #     QUARKUS_NEO4J_URI:                          bolt://neo4j:7687
-  #     QUARKUS_NEO4J_AUTHENTICATION_USERNAME:      neo4j
-  #     QUARKUS_NEO4J_AUTHENTICATION_PASSWORD:      medai-secret
-  #     QUARKUS_LANGCHAIN4J_OPENAI_API_KEY:         ${OPENAI_API_KEY}
+  #     QUARKUS_NEO4J_URI:                                  bolt://neo4j:7687
+  #     QUARKUS_NEO4J_AUTHENTICATION_USERNAME:              neo4j
+  #     QUARKUS_NEO4J_AUTHENTICATION_PASSWORD:              medai-secret
+  #     QUARKUS_LANGCHAIN4J_OLLAMA_BASE_URL:                http://ollama:11434
+  #     QUARKUS_LANGCHAIN4J_OLLAMA_CHAT_MODEL_MODEL_NAME:   phi3.5
   #   ports:
   #     - "8080:8080"
   #   volumes:
@@ -69,3 +115,4 @@ services:
 volumes:
   neo4j-data:
   neo4j-logs:
+  ollama-data:   # Modell-Cache — Neustart ohne Re-Download
