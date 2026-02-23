@@ -103,21 +103,17 @@
       <version>${quarkus-neo4j.version}</version>
     </dependency>
 
-    <!-- ── LangChain4j — core + Ollama provider (lokal, kein API-Key) ─── -->
+    <!-- ── LangChain4j — Google AI Gemini provider ──────────────────── -->
     <!--
-        quarkus-langchain4j-ollama verbindet sich mit einem lokalen Ollama-
-        Dienst (Standard: http://localhost:11434). Keine Rate-Limits, kein
-        API-Key, vollständig offline-fähig.
+        API-Key via Umgebungsvariable: GEMINI_API_KEY
+        Schlüssel erzeugen: https://aistudio.google.com/apikey
 
-        Modell wird beim ersten Start via `docker compose` automatisch
-        heruntergeladen (siehe docker/docker-compose.yml → ollama-init).
-
-        Alternative: Gemini wieder aktivieren mit
-          quarkus-langchain4j-ai-gemini + GEMINI_API_KEY
+        Alternativer Provider: quarkus-langchain4j-ollama (lokal, kein Key)
+        → empfohlen ab MacBook 2020 / ausreichend RAM für Modell-Inferenz.
     -->
     <dependency>
       <groupId>io.quarkiverse.langchain4j</groupId>
-      <artifactId>quarkus-langchain4j-ollama</artifactId>
+      <artifactId>quarkus-langchain4j-ai-gemini</artifactId>
       <version>${quarkus-langchain4j.version}</version>
     </dependency>
 
