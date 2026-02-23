@@ -3,20 +3,31 @@ package com.promevity.medai.adapter.out.llm;
 import com.promevity.medai.application.port.out.MedicalExplainerPort;
 import com.promevity.medai.domain.model.RiskAssessment;
 import io.quarkus.logging.Log;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Alternative;
 import jakarta.inject.Inject;
 
 /**
- * Getriebener Adapter — LLM-Implementierung von {@link MedicalExplainerPort}.
+ * LLM-basierter Explainer — <em>optionale</em> Alternative zu {@link TemplateMedicalExplainer}.
  *
- * <p><b>Primäres LLM:</b> Ollama (lokal, kein API-Key, keine Rate-Limits).<br>
- * <b>Fallback:</b> {@link TemplateMedicalExplainer} — generiert deterministisch
- * eine empathische Erklärung ohne externe Abhängigkeiten.
+ * <p><b>Standardmäßig inaktiv.</b> Um diesen Explainer zu aktivieren, folgende Zeile
+ * in {@code application.properties} einkommentieren:
+ * <pre>
+ *   quarkus.arc.selected-alternatives=com.promevity.medai.adapter.out.llm.LlmMedicalExplainer
+ * </pre>
  *
- * <p>Der Fallback greift automatisch, wenn Ollama nicht erreichbar ist
- * (z. B. Modell noch nicht heruntergeladen, Service startet noch).
- * Die Demo ist damit immer funktionsfähig.
+ * <p>Unterstützte LLM-Provider (in {@code application.properties} konfigurierbar):
+ * <ul>
+ *   <li>Ollama (lokal, kein API-Key) — empfohlen für schnelle Hardware (≥ 2020)</li>
+ *   <li>Google AI Gemini — kostenlos, aber Rate-Limits auf Free Tier</li>
+ * </ul>
+ *
+ * <p>Ist das LLM nicht erreichbar oder antwortet es nicht rechtzeitig, greift
+ * automatisch der {@link TemplateMedicalExplainer} als Fallback.
  */
+@Alternative
+@Priority(10)
 @ApplicationScoped
 public class LlmMedicalExplainer implements MedicalExplainerPort {
 
@@ -27,7 +38,8 @@ public class LlmMedicalExplainer implements MedicalExplainerPort {
     TemplateMedicalExplainer templateExplainer;
 
     @Override
-    public String explain(String patientName, RiskAssessment assessment, String rawText, String vitalSummary) {
+    public String explain(String patientName, RiskAssessment assessment,
+                          String rawText, String vitalSummary) {
         String symptomsJoined = String.join(", ", assessment.evidenceSymptoms());
 
         Log.debugf("[LLM] Erklärungs-Request: patient=%s, disease=%s, p=%.1f%%",
@@ -42,13 +54,12 @@ public class LlmMedicalExplainer implements MedicalExplainerPort {
                     rawText,
                     vitalSummary
             );
-            Log.debugf("[LLM] Ollama-Antwort erhalten (%d Zeichen)", result.length());
+            Log.debugf("[LLM] Antwort erhalten (%d Zeichen)", result.length());
             return result;
 
         } catch (Exception e) {
-            Log.warnf("[LLM] Ollama nicht verfügbar (%s) — Template-Fallback aktiv", e.getMessage());
+            Log.warnf("[LLM] LLM nicht verfügbar (%s) — Template-Fallback aktiv", e.getMessage());
             return templateExplainer.explain(patientName, assessment, vitalSummary);
         }
     }
 }
-

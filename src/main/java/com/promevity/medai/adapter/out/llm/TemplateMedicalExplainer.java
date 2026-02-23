@@ -1,27 +1,41 @@
 package com.promevity.medai.adapter.out.llm;
 
+import com.promevity.medai.application.port.out.MedicalExplainerPort;
 import com.promevity.medai.domain.model.RiskAssessment;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.List;
 
 /**
- * Template-basierter Fallback-Explainer — kein externer LLM-Aufruf.
+ * Template-basierter Explainer — Standard-Implementierung von {@link MedicalExplainerPort}.
  *
  * <p>Generiert deterministisch eine patientengerechte, empathische Erklärung
  * auf Deutsch direkt aus dem {@link RiskAssessment}-Domänenobjekt.
- * Wird von {@link LlmMedicalExplainer} als Fallback eingesetzt,
- * wenn das primäre LLM (Ollama) nicht erreichbar ist.
+ * Kein externer LLM-Aufruf, kein API-Key, keine Rate-Limits, keine Latenz.
  *
- * <p>Package-private — nur innerhalb des LLM-Adapters sichtbar.
+ * <p><b>Aktivierung:</b> Diese Klasse ist der CDI-Default und wird automatisch
+ * injiziert, solange {@code LlmMedicalExplainer} nicht als Alternative aktiviert ist.
+ *
+ * <p><b>LLM opt-in:</b> Um Ollama zu nutzen, folgende Zeile in {@code application.properties}
+ * einkommentieren:
+ * <pre>
+ *   quarkus.arc.selected-alternatives=com.promevity.medai.adapter.out.llm.LlmMedicalExplainer
+ * </pre>
  */
 @ApplicationScoped
-class TemplateMedicalExplainer {
+public class TemplateMedicalExplainer implements MedicalExplainerPort {
 
+    @Override
+    public String explain(String patientName, RiskAssessment assessment,
+                          String rawText, String vitalSummary) {
+        return explain(patientName, assessment, vitalSummary);
+    }
+
+    /** Interne Überladung — wird auch von {@link LlmMedicalExplainer} als Fallback genutzt. */
     String explain(String patientName, RiskAssessment assessment, String vitalSummary) {
-        double pct         = assessment.probabilityPercentage();
-        String disease     = assessment.diseaseName();
-        List<String> syms  = assessment.evidenceSymptoms();
+        double pct        = assessment.probabilityPercentage();
+        String disease    = assessment.diseaseName();
+        List<String> syms = assessment.evidenceSymptoms();
 
         String symptomsText = syms.isEmpty()
                 ? "allgemeine Beschwerden"
@@ -52,14 +66,14 @@ class TemplateMedicalExplainer {
                 ? " Ihre Wearable-Messung ergab folgende Werte: " + vitalSummary + "."
                 : "";
 
-        return ("Guten Tag, " + patientName + "! Vielen Dank, dass Sie Ihre Beschwerden mitgeteilt "
+        return "Guten Tag, " + patientName + "! Vielen Dank, dass Sie Ihre Beschwerden mitgeteilt "
                 + "haben. Die berichteten Symptome (" + symptomsText + ") wurden sorgfältig analysiert.\n\n"
                 + urgency + " Auf Basis Ihrer Angaben ergibt die computergestützte Risikobewertung "
                 + "einen Hinweis auf " + disease + "." + vitalsNote + " Bitte beachten Sie: Dies ist "
                 + "keine ärztliche Diagnose, sondern eine statistische Einschätzung, die als "
                 + "Gesprächsgrundlage für Ihren Arzt dienen soll.\n\n"
                 + action + " Nur ein qualifizierter Arzt kann eine verlässliche Diagnose stellen — "
-                + "bitte zögern Sie nicht, professionellen Rat einzuholen.").stripIndent();
+                + "bitte zögern Sie nicht, professionellen Rat einzuholen.";
     }
 
     private static String fmt(double pct) {
